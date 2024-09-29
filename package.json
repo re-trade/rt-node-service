@@ -1,0 +1,23 @@
+{
+  "name": "@vietnam-sea/monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo Service Of Sea Mobile Service Written By Ts",
+  "main": "index.js",
+  "repository": "git@github.com:vietnam-sea/sea-node-service.git",
+  "author": "@AnataAria",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "tsc": "^2.0.4",
+    "typescript": "^5.6.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsc": "^2.0.4",
+    "typescript": "^5.6.2"
+  }
+}

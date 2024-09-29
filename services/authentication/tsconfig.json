@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./build",
+    "rootDir": ".",
+    "composite": true,
+    "baseUrl": "./src",
+  },
+  "exclude": ["node_modules", "./build"],
+  "include": ["./src"],
+  "ts-node": {
+    "esm": true
+  }
+}
