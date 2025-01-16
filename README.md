@@ -1,4 +1,4 @@
-# Vietnam Sea Monorepo Main Backend  
+# Vietnam Sea Monorepo Mobile Backend  
 
 ## Overview  
 This is the mobile backend service for the **Vietnam Sea (VNS)** monorepo project. It provides essential APIs and functionality to support the ecosystem of VNS, including services for user management, booking, payments, and more.  
