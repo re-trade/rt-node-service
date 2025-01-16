@@ -1,22 +1,45 @@
 {
-  "name": "@vietnam-sea/monorepo",
+  "name": "@vietnam-sea/sea-mobile-node",
   "version": "1.0.0",
-  "description": "Monorepo Service Of Sea Mobile Service Written By Ts",
-  "main": "index.js",
+  "description": "Service Of Sea Mobile Service Written By Ts",
   "repository": "git@github.com:vietnam-sea/sea-node-service.git",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "type": "module",
   "author": "@AnataAria",
   "license": "MIT",
-  "private": true,
-  "workspaces": [
-    "services/*",
-    "packages/*"
-  ],
+  "private": false,
+  "module": "./build/src/index.js",
+  "scripts": {
+    "build": "yarn clean && tsc",
+    "dev": "nodemon --watch src --ext ts --exec 'node --loader=ts-node/esm --trace-warnings src/index.ts'",
+    "clean": "rimraf ./build"
+  },
   "dependencies": {
-    "tsc": "^2.0.4",
-    "typescript": "^5.6.2"
+    "@apollo/server": "^4.11.2",
+    "@apollo/subgraph": "^2.9.3",
+    "@graphql-tools/load": "^8.0.9",
+    "@graphql-tools/merge": "^9.0.14",
+    "@graphql-tools/schema": "^10.0.13",
+    "@grpc/grpc-js": "^1.12.5",
+    "@grpc/proto-loader": "^0.7.13",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "graphql": "^16.10.0",
+    "graphql-tag": "^2.12.6",
+    "graphql-tools": "^9.0.8",
+    "joi": "^17.13.3"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/dotenv": "^8.2.0",
+    "@types/express": "^4.17.17",
+    "@types/node": "^22.7.4",
+    "grpc-tools": "^1.12.4",
+    "nodemon": "^3.1.7",
     "ts-node": "^10.9.2",
+    "ts-proto": "^2.6.1",
     "tsc": "^2.0.4",
     "typescript": "^5.6.2"
   }

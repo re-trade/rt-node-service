@@ -1,0 +1,5 @@
+services:
+  sea-node-service:
+    build:
+      context: .
+      dockerfile: Dockerfile

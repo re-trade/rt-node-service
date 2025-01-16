@@ -12,10 +12,24 @@
     "preserveConstEnums": true,
     "skipLibCheck": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "outDir": "./build",
+    "rootDir": "./src",
+    "composite": true,
+    "baseUrl": "./src",
+    "tsBuildInfoFile": "./build/.tsbuildinfo",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@services/*": ["./src/services/*"],
+      "@configs/*": ["./src/configs/*"],
+      "@graphql/*": ["./src/graphql/*"],
+      "@helpers/*": ["./src/helpers/*"],
+      "@models/*": ["./src/models/*"],
+    }
   },
-  "references": [
-    {"path": "./packages/*"},
-    {"path": "./services/*"}
-  ]
+  "exclude": ["node_modules", "./build"],
+  "include": ["./src"],
+  "ts-node": {
+    "esm": true
+  }
 }
