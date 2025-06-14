@@ -1,2 +1,2 @@
 import envLoader from './env-loader.js';
-export default {envLoader}
+export default { envLoader };

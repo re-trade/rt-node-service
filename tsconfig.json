@@ -22,9 +22,12 @@
       "@/*": ["./src/*"],
       "@services/*": ["./src/services/*"],
       "@configs/*": ["./src/configs/*"],
-      "@graphql/*": ["./src/graphql/*"],
+      "@controllers/*": ["./src/controllers/*"],
+      "@middleware/*": ["./src/middleware/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@types/*": ["./src/types/*"],
       "@helpers/*": ["./src/helpers/*"],
-      "@models/*": ["./src/models/*"],
+      "@models/*": ["./src/models/*"]
     }
   },
   "exclude": ["node_modules", "./build"],

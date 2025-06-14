@@ -1,15 +1,21 @@
-import EnvLoader, { TEnvValidatorKeyMap } from "../helpers/env-loader.js"
+import EnvLoader, { TEnvValidatorKeyMap } from '../helpers/env-loader.js';
 
-type TSeaEnvironment = {
-    NODE_ENV: 'development' | 'production',
-    PORT: number,
-    USER_API_URL: string
-}
-const validators: TEnvValidatorKeyMap<TSeaEnvironment> = {
-    NODE_ENV: { required: true, default: 'development' },
-    PORT: { required: true, default: 3000 },
-    USER_API_URL: { required: false }
+type TRetradeEnvironment = {
+  NODE_ENV: 'development' | 'production';
+  PORT: number;
+  CORS_ORIGIN: string;
+  JWT_SECRET: string;
+  REDIS_URL: string;
+  SOCKET_PORT: number;
 };
-const configLoader = new EnvLoader<TSeaEnvironment>(validators);
+const validators: TEnvValidatorKeyMap<TRetradeEnvironment> = {
+  NODE_ENV: { required: true, default: 'development' },
+  PORT: { required: true, default: 3000 },
+  CORS_ORIGIN: { required: true, default: 'http://localhost:3000' },
+  JWT_SECRET: { required: true, default: 'your-secret-key' },
+  REDIS_URL: { required: false, default: 'redis://localhost:6379' },
+  SOCKET_PORT: { required: true, default: 3001 },
+};
+const configLoader = new EnvLoader<TRetradeEnvironment>(validators);
 
 export default configLoader;
