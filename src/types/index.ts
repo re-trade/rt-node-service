@@ -1,33 +1,66 @@
-import { Message, Room, User } from './models.js';
+import {
+  User,
+  Message as ModelMessage,
+  Room as ModelRoom,
+  VideoSession as ModelVideoSession,
+  Recording as ModelRecording,
+} from './models.js';
 
+// Common Types
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  count?: number;
+  error?: string;
+  pagination?: {
+    limit: number;
+    offset: number;
+    hasMore?: boolean;
+  };
+}
+
+// Re-export base types
+export type { User } from './models.js';
+
+// Extended Types
 export interface OnlineUser extends User {
   isOnline: boolean;
-  avatar?: string;
 }
 
-export interface VideoCallSignal {
-  type: 'offer' | 'answer' | 'ice-candidate';
-  payload: any;
-  from: string;
-  to: string;
+// Chat Types
+export interface Message extends ModelMessage {
+  sender?: OnlineUser;
 }
 
-export interface CallStatus {
-  isActive: boolean;
-  participants: string[];
-  startTime?: Date;
-  roomId: string;
+export interface Room extends ModelRoom {
+  participants: OnlineUser[];
 }
+
+// Video Types
+export type VideoSession = ModelVideoSession;
 
 export interface VideoRoom {
   id: string;
   participants: OnlineUser[];
-  startTime: Date;
-  status: 'active' | 'ended';
-  endTime?: Date;
+  maxParticipants: number;
+  isActive: boolean;
+  createdAt: Date;
 }
 
+export interface VideoCallSignal {
+  type: 'offer' | 'answer' | 'ice-candidate';
+  data: any;
+  from: string | null;
+  to: string;
+  roomId: string;
+}
+
+export type Recording = ModelRecording;
+
+// Socket Types
 export interface ServerToClientEvents {
+  // Chat events
   message: (message: Message) => void;
   userJoined: (user: OnlineUser) => void;
   userLeft: (user: OnlineUser) => void;
@@ -46,17 +79,19 @@ export interface ServerToClientEvents {
   // Video call events
   incomingCall: (data: { callerId: string; callerName: string; roomId: string }) => void;
   callAccepted: (data: { accepterId: string; roomId: string }) => void;
-  callRejected: (data: { rejecterId: string; reason?: string }) => void;
+  callRejected: (data: { rejecterId: string; reason: string | null }) => void;
   callEnded: (data: { enderId: string; roomId: string; duration: number }) => void;
-  signaling: (signal: VideoCallSignal) => void;
+  signal: (signal: VideoCallSignal) => void;
 
-  // System events
-  error: (error: { message: string; code?: string }) => void;
+  // Error events
+  error: (error: { message: string; code: string | null }) => void;
 }
 
 export interface ClientToServerEvents {
+  // Authentication
   authenticate: (userData: { username: string; email: string; name: string }) => void;
 
+  // Chat events
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
@@ -64,6 +99,7 @@ export interface ClientToServerEvents {
   typing: (data: { roomId: string; isTyping: boolean }) => void;
   markMessageRead: (data: { messageId: string; roomId: string }) => void;
 
+  // Video call events
   initiateCall: (data: { recipientId: string; roomId: string }) => void;
   acceptCall: (data: { callerId: string; roomId: string }) => void;
   rejectCall: (data: { callerId: string; reason?: string }) => void;
@@ -78,5 +114,15 @@ export interface InterServerEvents {
 export interface SocketData {
   user?: OnlineUser;
   rooms: Set<string>;
-  activeCall?: CallStatus;
+  activeCall?: VideoSession;
 }
+
+export type ValidationError = {
+  field: string;
+  message: string;
+};
+
+export type ValidationResult = {
+  isValid: boolean;
+  errors?: ValidationError[];
+};

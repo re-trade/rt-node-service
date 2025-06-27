@@ -11,18 +11,22 @@ model User {
   id        String    @id @default(uuid())
   name      String
   email     String    @unique
+  username  String    @unique
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
-  username String   @unique @map("username")
+  messages  Message[] @relation("SentMessages")
+
   @@map("users")
 }
 
 model Room {
-  id        String    @id @default(uuid())
-  name      String
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  Message   Message[]
+  id            String         @id @default(uuid())
+  name          String
+  isPrivate     Boolean       @default(false)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  messages      Message[]
+  videoSessions VideoSession[]
 
   @@map("rooms")
 }
@@ -33,19 +37,36 @@ model Message {
   roomId    String
   room      Room     @relation(fields: [roomId], references: [id])
   senderId  String   @map("sender_id")
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("messages")
 }
 
+model VideoSession {
+  id           String    @id @default(uuid())
+  roomId       String
+  room         Room      @relation(fields: [roomId], references: [id])
+  startTime    DateTime  @map("start_time")
+  endTime      DateTime? @map("end_time")
+  participants String[]
+  recordingUrl String?   @map("recording_url")
+  duration     Int?
+  status       String    @default("active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("video_sessions")
+}
+
 model Recording {
-  id             String   @id @default(uuid())
-  callSessionId  String   @map("call_session_id")
-  filePath       String   @map("file_path")
-  startTime      DateTime @map("start_time")
-  endTime        DateTime? @map("end_time")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(uuid())
+  callSessionId String   @map("call_session_id")
+  filePath     String    @map("file_path")
+  startTime    DateTime  @map("start_time")
+  endTime      DateTime? @map("end_time")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   @@map("recordings")
 }
