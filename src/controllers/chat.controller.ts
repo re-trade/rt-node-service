@@ -3,7 +3,6 @@ import ChatModel from '../models/ChatModel.js';
 import type { ApiResponse, Message, OnlineUser, Room } from '../types/index.js';
 
 class ChatController {
-
   static async getOnlineUsers(req: Request, res: Response) {
     try {
       const users = await ChatModel.getOnlineUsers();
@@ -161,7 +160,7 @@ class ChatController {
       });
     }
   }
-  
+
   static async clearRoomMessages(req: Request, res: Response) {
     try {
       const { roomId } = req.params;

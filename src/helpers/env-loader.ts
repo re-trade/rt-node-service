@@ -2,7 +2,7 @@ import { config, DotenvConfigOptions } from 'dotenv';
 
 type TEnvKeyType<DataType, K extends keyof DataType> = DataType[K];
 
-type TEnvKeyMap<DataType> = {
+export type TEnvKeyMap<DataType> = {
   [Property in keyof DataType]: TEnvKeyType<DataType, Property>;
 };
 

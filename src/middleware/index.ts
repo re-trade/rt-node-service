@@ -1,17 +1,14 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import Joi from 'joi';
 
-// Type for async request handlers
 type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<any>;
 
-// Async handler wrapper
 export const asyncHandler = (fn: AsyncRequestHandler): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
-// Error handling middleware
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
   console.error('Error:', err);
   res.status(500).json({
@@ -21,7 +18,6 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   });
 };
 
-// Not found handler
 export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
     success: false,
@@ -29,7 +25,6 @@ export const notFoundHandler = (req: Request, res: Response): void => {
   });
 };
 
-// Validation middleware
 export const validateBody = (schema: Joi.ObjectSchema): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body, { abortEarly: false });
@@ -84,7 +79,6 @@ export const validateQuery = (schema: Joi.ObjectSchema): RequestHandler => {
   };
 };
 
-// Common validation schemas
 const commonSchemas = {
   uuid: Joi.string().uuid(),
   pagination: {
@@ -93,7 +87,6 @@ const commonSchemas = {
   },
 };
 
-// Chat validation schemas
 export const chatSchemas = {
   roomId: Joi.object({
     roomId: commonSchemas.uuid.required(),

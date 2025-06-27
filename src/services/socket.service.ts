@@ -57,7 +57,14 @@ function setupEventHandlers(): void {
 
     socket.on('acceptCall', data => videoService.handleAcceptCall(socket, data));
 
-    socket.on('rejectCall', data => videoService.handleRejectCall(socket, data));
+    socket.on('rejectCall', data => {
+      const roomId = videoService.getRoomIdForUser(data.callerId);
+      if (roomId) {
+        videoService.handleRejectCall(socket, { ...data, roomId });
+      } else {
+        socket.emit('error', { message: 'No active call found', code: 'NO_ACTIVE_CALL' });
+      }
+    });
 
     socket.on('endCall', data => videoService.handleEndCall(socket, data));
 

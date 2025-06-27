@@ -6,13 +6,21 @@ export interface PeerConnection {
   createdAt: Date;
 }
 
-export interface SignalData {
+export interface BaseSignalData {
   type: 'offer' | 'answer' | 'ice-candidate' | 'signal';
   data: any;
-  from?: string;
-  to: string;
   roomId: string;
 }
+
+export interface ClientSignalData extends BaseSignalData {
+  to: string;
+}
+
+export interface ServerSignalData extends BaseSignalData {
+  from: string;
+}
+
+export type SignalData = ClientSignalData;
 
 export interface WebRTCRoom {
   id: string;
@@ -32,7 +40,7 @@ export interface CallSession {
 }
 
 export interface WebRTCServerToClientEvents {
-  signal: (data: { from: string; type: string; data: any; roomId: string }) => void;
+  signal: (data: ServerSignalData) => void;
   'user-joined-call': (data: { userId: string; roomId: string }) => void;
   'user-left-call': (data: { userId: string; roomId: string }) => void;
   'call-ended': (data: { roomId: string }) => void;
@@ -48,7 +56,7 @@ export interface WebRTCServerToClientEvents {
 export interface WebRTCClientToServerEvents {
   'join-call': (data: { roomId: string; userId: string }) => void;
   'leave-call': (data: { roomId: string; userId: string }) => void;
-  signal: (data: SignalData) => void;
+  signal: (data: ClientSignalData) => void;
   'start-call': (data: { roomId: string; type: 'audio' | 'video' }) => void;
   'end-call': (data: { roomId: string }) => void;
   'start-recording': (data: { callSessionId: string }) => void;

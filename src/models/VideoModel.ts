@@ -48,7 +48,9 @@ class VideoModel {
     const room = await this.getVideoRoom(roomId);
     if (!room) return;
 
-    room.participants = room.participants.filter((participant: OnlineUser) => participant.id !== userId);
+    room.participants = room.participants.filter(
+      (participant: OnlineUser) => participant.id !== userId
+    );
     if (room.participants.length === 0) {
       await redisClient.del(`videoRoom:${roomId}`);
     } else {
@@ -70,7 +72,7 @@ class VideoModel {
     return {
       ...rest,
       recordingUrl: rawUrl ?? undefined,
-      duration: undefined
+      duration: undefined,
     };
   }
 
@@ -80,7 +82,7 @@ class VideoModel {
       data: {
         endTime: new Date(),
         status: 'ended',
-        duration: duration ?? undefined
+        duration: duration ?? undefined,
       },
     });
 
@@ -88,7 +90,7 @@ class VideoModel {
     return {
       ...rest,
       recordingUrl: rawUrl ?? undefined,
-      duration: rest.duration ?? undefined
+      duration: rest.duration ?? undefined,
     };
   }
 
@@ -102,7 +104,7 @@ class VideoModel {
       return {
         ...rest,
         recordingUrl: rawUrl ?? undefined,
-        duration: rest.duration ?? undefined
+        duration: rest.duration ?? undefined,
       };
     });
   }

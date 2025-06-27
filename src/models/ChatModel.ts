@@ -132,10 +132,12 @@ class ChatModel {
 
     return {
       ...message,
-      sender: message.sender ? {
-        ...message.sender,
-        isOnline: (await redisClient.sIsMember('onlineUsers', message.sender.id)) === 1
-      } : undefined
+      sender: message.sender
+        ? {
+            ...message.sender,
+            isOnline: (await redisClient.sIsMember('onlineUsers', message.sender.id)) === 1,
+          }
+        : undefined,
     };
   }
 
@@ -152,10 +154,12 @@ class ChatModel {
 
     return messages.map(message => ({
       ...message,
-      sender: message.sender ? {
-        ...message.sender,
-        isOnline: Boolean(onlineUsers.includes(message.sender.id))
-      } : undefined
+      sender: message.sender
+        ? {
+            ...message.sender,
+            isOnline: Boolean(onlineUsers.includes(message.sender.id)),
+          }
+        : undefined,
     }));
   }
 

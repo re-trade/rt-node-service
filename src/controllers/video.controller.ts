@@ -81,7 +81,6 @@ class VideoController {
     }
   }
 
-  // Get all recordings
   static async getAllRecordings(req: Request, res: Response) {
     try {
       const recordings = await VideoModel.getAllRecordings();
@@ -100,7 +99,6 @@ class VideoController {
     }
   }
 
-  // Get session recordings
   static async getSessionRecordings(req: Request, res: Response) {
     try {
       const { sessionId } = req.params;
@@ -144,7 +142,7 @@ class VideoController {
       });
     }
   }
-  
+
   static async healthCheck(req: Request, res: Response) {
     try {
       const activeSessions = await VideoModel.getActiveVideoSessions();

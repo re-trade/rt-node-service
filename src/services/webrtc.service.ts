@@ -1,17 +1,17 @@
-import { Server as SocketIOServer } from 'socket.io';
-import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
-import {
+import { Server as SocketIOServer } from 'socket.io';
+import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '../configs/prisma.js';
+import { RecordingChunk } from '../types/recording.types.js';
+import type {
   CallSession,
+  ClientSignalData,
   PeerConnection,
-  SignalData,
   WebRTCClientToServerEvents,
   WebRTCRoom,
-  WebRTCServerToClientEvents,
+  WebRTCServerToClientEvents
 } from '../types/webrtc.types.js';
-import { RecordingChunk } from '../types/recording.types.js';
-import { prisma } from '../configs/prisma.js';
 
 let io: SocketIOServer<WebRTCClientToServerEvents, WebRTCServerToClientEvents>;
 const rooms = new Map<string, WebRTCRoom>();
@@ -39,6 +39,53 @@ export function createWebRTCService(socketIO: SocketIOServer) {
       };
       rooms.set(roomId, room);
       return roomId;
+    },
+    handleJoinCall: (socket: any, data: { roomId: string; userId: string }) => {
+      const { roomId, userId } = data;
+      const room = rooms.get(roomId);
+      if (!room) {
+        socket.emit('webrtc-error', { message: 'Room not found', code: 'ROOM_NOT_FOUND' });
+        return;
+      }
+      if (room.participants.length >= room.maxParticipants) {
+        socket.emit('room-full', { roomId });
+        return;
+      }
+      if (!room.participants.includes(userId)) {
+        room.participants.push(userId);
+      }
+      socket.join(roomId);
+      socket.to(roomId).emit('new-participant', { socketId: socket.id, userId });
+    },
+    handleLeaveCall: (socket: any, data: { roomId: string; userId: string }) => {
+      handleUserLeaveCall(socket.id, data.roomId, data.userId);
+    },
+    handleSignal: (socket: any, data: ClientSignalData) => {
+      io.to(data.to).emit('signal', {
+        from: socket.id,
+        type: data.type,
+        data: data.data,
+        roomId: data.roomId,
+      });
+    },
+    handleStartRecording: (socket: any, data: { callSessionId: string }) => {
+      const filePath = path.join(process.cwd(), 'recordings', `${data.callSessionId}.webm`);
+      const writeStream = fs.createWriteStream(filePath);
+      recordingStreams.set(data.callSessionId, writeStream);
+    },
+    handleStopRecording: (socket: any, data: { callSessionId: string }) => {
+      const writeStream = recordingStreams.get(data.callSessionId);
+      if (writeStream) {
+        writeStream.end();
+        recordingStreams.delete(data.callSessionId);
+      }
+    },
+    handleRecordingChunk: (socket: any, data: { callSessionId: string; chunk: string }) => {
+      const writeStream = recordingStreams.get(data.callSessionId);
+      if (writeStream) {
+        const buffer = Buffer.from(data.chunk, 'base64');
+        writeStream.write(buffer);
+      }
     },
   };
 }
@@ -92,7 +139,7 @@ function setupWebRTCHandlers(): void {
       handleUserLeaveCall(socket.id, roomId, userId);
     });
 
-    socket.on('signal', (data: SignalData) => {
+    socket.on('signal', (data: ClientSignalData) => {
       const { to, roomId, type, data: payload } = data;
       io.to(to).emit('signal', {
         from: socket.id,

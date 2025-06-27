@@ -74,7 +74,7 @@ class ChatService {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
-    
+
     await this.addUserToRoom(socket, room);
     const recentMessages = await this.getRoomMessages(roomId);
     recentMessages.forEach(message => socket.emit('message', message));
