@@ -29,11 +29,11 @@ export interface VideoSession {
   id: string;
   roomId: string;
   startTime: Date;
-  endTime?: Date;
+  endTime: Date | null;
   participants: string[];
   recordingUrl?: string;
   duration?: number;
-  status: 'active' | 'ended' | 'failed';
+  status: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,7 +43,7 @@ export interface Recording {
   callSessionId: string;
   filePath: string;
   startTime: Date;
-  endTime?: Date;
+  endTime: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

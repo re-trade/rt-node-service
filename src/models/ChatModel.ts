@@ -1,6 +1,6 @@
 import { prisma } from '../configs/prisma.js';
 import { redisClient } from '../configs/redis.js';
-import type { Message, Room, OnlineUser } from '../types/index.js';
+import type { Message, OnlineUser, Room } from '../types/index.js';
 
 class ChatModel {
   async createUser(userData: {
@@ -127,21 +127,36 @@ class ChatModel {
       include: { sender: true },
     });
 
-    // Cache the message
     await redisClient.lPush(`room:${data.roomId}:messages`, JSON.stringify(message));
     await redisClient.lTrim(`room:${data.roomId}:messages`, 0, 999);
 
-    return message;
+    return {
+      ...message,
+      sender: message.sender ? {
+        ...message.sender,
+        isOnline: (await redisClient.sIsMember('onlineUsers', message.sender.id)) === 1
+      } : undefined
+    };
   }
 
   async getRoomMessages(roomId: string, limit = 50, offset = 0): Promise<Message[]> {
-    return await prisma.message.findMany({
+    const messages = await prisma.message.findMany({
       where: { roomId },
       include: { sender: true },
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
     });
+
+    const onlineUsers = await redisClient.sMembers('onlineUsers');
+
+    return messages.map(message => ({
+      ...message,
+      sender: message.sender ? {
+        ...message.sender,
+        isOnline: Boolean(onlineUsers.includes(message.sender.id))
+      } : undefined
+    }));
   }
 
   async clearRoomMessages(roomId: string): Promise<void> {

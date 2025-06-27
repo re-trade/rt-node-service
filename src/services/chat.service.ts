@@ -47,10 +47,7 @@ class ChatService {
     socket.data.user = onlineUser;
     socket.data.rooms = new Set();
 
-    // Notify others of new user
     socket.broadcast.emit('userJoined', onlineUser);
-
-    // Send online users to the newly connected user
     const users = await this.getOnlineUsers();
     socket.emit('onlineUsers', users);
   }
@@ -62,11 +59,7 @@ class ChatService {
     }
 
     const message = await this.createMessage(socket.data.user.id, data);
-
-    // Store in Redis for real-time access
     await this.cacheMessage(data.roomId, message);
-
-    // Broadcast to room participants
     this.io.to(data.roomId).emit('message', message);
   }
 
@@ -81,10 +74,8 @@ class ChatService {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
-
+    
     await this.addUserToRoom(socket, room);
-
-    // Send recent messages
     const recentMessages = await this.getRoomMessages(roomId);
     recentMessages.forEach(message => socket.emit('message', message));
   }
@@ -124,7 +115,6 @@ class ChatService {
     await this.handleUserDisconnect(socket);
   }
 
-  // Public methods for external use
   async getOnlineUsers(): Promise<OnlineUser[]> {
     const userIds = await redisClient.sMembers('onlineUsers');
     const users = await prisma.user.findMany({
@@ -150,12 +140,14 @@ class ChatService {
         createdAt: 'desc',
       },
     });
-
+    if (rooms.length === 0) return [];
     return Promise.all(
       rooms.map(async room => ({
         id: room.id,
         name: room.name,
         createdAt: room.createdAt,
+        isPrivate: room.isPrivate,
+        updatedAt: room.updatedAt,
         participants: await this.getRoomParticipants(room.id),
         messages: room.messages,
       }))
@@ -171,7 +163,6 @@ class ChatService {
     });
   }
 
-  // Private helper methods
   private async setUserData(user: OnlineUser) {
     await redisClient.hSet(`user:${user.id}`, {
       id: user.id,
@@ -204,7 +195,7 @@ class ChatService {
     const room = await prisma.room.findUnique({
       where: { id: roomId },
       include: {
-        Message: true,
+        messages: true,
       },
     });
 
@@ -222,7 +213,7 @@ class ChatService {
         name: data.name,
       },
       include: {
-        Message: true,
+        messages: true,
       },
     });
 
@@ -280,13 +271,8 @@ class ChatService {
     }
 
     try {
-      // Update message read status in Redis for real-time tracking
       await redisClient.sAdd(`message:${data.messageId}:read_by`, socket.data.user.id);
-
-      // Get all users who have read this message
       const readByUsers = await redisClient.sMembers(`message:${data.messageId}:read_by`);
-
-      // Notify room participants about message read status
       this.io.to(data.roomId).emit('messageRead', {
         messageId: data.messageId,
         userId: socket.data.user.id,

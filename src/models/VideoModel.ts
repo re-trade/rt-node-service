@@ -1,73 +1,77 @@
 import { prisma } from '../configs/prisma.js';
 import { redisClient } from '../configs/redis.js';
-import type { VideoSession, VideoRoom, Recording } from '../types/index.js';
+import type { VideoSession, VideoRoom, OnlineUser, Recording } from '../types/index.js';
 
 class VideoModel {
   async createVideoRoom(maxParticipants: number = 4): Promise<VideoRoom> {
-    const room = await prisma.room.create({
-      data: {
-        name: `Video Room ${Date.now()}`,
-        isPrivate: true,
-      },
-    });
-
-    const videoRoom: VideoRoom = {
-      id: room.id,
+    const room: VideoRoom = {
+      id: crypto.randomUUID(),
       participants: [],
       maxParticipants,
       isActive: true,
       createdAt: new Date(),
     };
 
-    await redisClient.set(`videoroom:${room.id}`, JSON.stringify(videoRoom));
-    return videoRoom;
+    await redisClient.set(`videoRoom:${room.id}`, JSON.stringify(room));
+    return room;
   }
 
   async getVideoRoom(roomId: string): Promise<VideoRoom | null> {
-    const cached = await redisClient.get(`videoroom:${roomId}`);
-    if (cached) {
-      return JSON.parse(cached);
+    const roomData = await redisClient.get(`videoRoom:${roomId}`);
+    if (!roomData) return null;
+
+    const room = JSON.parse(roomData) as VideoRoom;
+    if (!room.isActive) {
+      await redisClient.del(`videoRoom:${roomId}`);
+      return null;
     }
-    return null;
+
+    return room;
   }
 
-  async addParticipantToRoom(roomId: string, userId: string): Promise<boolean> {
+  async addParticipant(roomId: string, userId: string): Promise<boolean> {
     const room = await this.getVideoRoom(roomId);
     if (!room || room.participants.length >= room.maxParticipants) {
       return false;
     }
 
-    room.participants.push(userId);
-    await redisClient.set(`videoroom:${roomId}`, JSON.stringify(room));
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return false;
+
+    const onlineUser = { ...user, isOnline: true } as OnlineUser;
+    room.participants.push(onlineUser);
+    await redisClient.set(`videoRoom:${roomId}`, JSON.stringify(room));
     return true;
   }
 
-  async removeParticipantFromRoom(roomId: string, userId: string): Promise<void> {
+  async removeParticipant(roomId: string, userId: string): Promise<void> {
     const room = await this.getVideoRoom(roomId);
-    if (room) {
-      room.participants = room.participants.filter(id => id !== userId);
-      if (room.participants.length === 0) {
-        room.isActive = false;
-      }
-      await redisClient.set(`videoroom:${roomId}`, JSON.stringify(room));
+    if (!room) return;
+
+    room.participants = room.participants.filter((participant: OnlineUser) => participant.id !== userId);
+    if (room.participants.length === 0) {
+      await redisClient.del(`videoRoom:${roomId}`);
+    } else {
+      await redisClient.set(`videoRoom:${roomId}`, JSON.stringify(room));
     }
   }
 
-  async createVideoSession(roomId: string, participants: string[]): Promise<VideoSession> {
+  async createVideoSession(data: { roomId: string }): Promise<VideoSession> {
     const session = await prisma.videoSession.create({
       data: {
-        roomId,
+        ...data,
         startTime: new Date(),
-        participants,
         status: 'active',
-        endTime: null,
-        recordingUrl: null,
-        duration: null,
+        participants: [],
       },
     });
 
-    await redisClient.set(`videosession:${session.id}`, JSON.stringify(session));
-    return session;
+    const { recordingUrl: rawUrl, ...rest } = session;
+    return {
+      ...rest,
+      recordingUrl: rawUrl ?? undefined,
+      duration: undefined
+    };
   }
 
   async endVideoSession(sessionId: string, duration?: number): Promise<VideoSession> {
@@ -76,12 +80,31 @@ class VideoModel {
       data: {
         endTime: new Date(),
         status: 'ended',
-        duration: duration || null,
+        duration: duration ?? undefined
       },
     });
 
-    await redisClient.del(`videosession:${sessionId}`);
-    return session;
+    const { recordingUrl: rawUrl, ...rest } = session;
+    return {
+      ...rest,
+      recordingUrl: rawUrl ?? undefined,
+      duration: rest.duration ?? undefined
+    };
+  }
+
+  async getActiveVideoSessions(): Promise<VideoSession[]> {
+    const sessions = await prisma.videoSession.findMany({
+      where: { status: 'active' },
+    });
+
+    return sessions.map(session => {
+      const { recordingUrl: rawUrl, ...rest } = session;
+      return {
+        ...rest,
+        recordingUrl: rawUrl ?? undefined,
+        duration: rest.duration ?? undefined
+      };
+    });
   }
 
   async createRecording(data: { callSessionId: string; filePath: string }): Promise<Recording> {
@@ -98,12 +121,6 @@ class VideoModel {
     return await prisma.recording.update({
       where: { id: recordingId },
       data: { endTime: new Date() },
-    });
-  }
-
-  async getActiveVideoSessions(): Promise<VideoSession[]> {
-    return await prisma.videoSession.findMany({
-      where: { status: 'active' },
     });
   }
 

@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { prisma } from '../configs/prisma.js';
 import VideoModel from '../models/VideoModel.js';
-import type { ApiResponse, VideoRoom, VideoSession, Recording } from '../types/index.js';
+import type { ApiResponse, Recording, VideoRoom, VideoSession } from '../types/index.js';
 
 class VideoController {
-  // Get room status
   static async getRoomStatus(req: Request, res: Response) {
     try {
       const { roomId } = req.params;
@@ -44,7 +42,6 @@ class VideoController {
     }
   }
 
-  // Create new video room
   static async createRoom(req: Request, res: Response) {
     try {
       const { maxParticipants = 4, name } = req.body;
@@ -66,7 +63,6 @@ class VideoController {
     }
   }
 
-  // Get active sessions
   static async getActiveSessions(req: Request, res: Response) {
     try {
       const sessions = await VideoModel.getActiveVideoSessions();
@@ -124,7 +120,6 @@ class VideoController {
     }
   }
 
-  // Delete recording
   static async deleteRecording(req: Request, res: Response) {
     try {
       const { recordingId } = req.params;
@@ -149,8 +144,7 @@ class VideoController {
       });
     }
   }
-
-  // Health check
+  
   static async healthCheck(req: Request, res: Response) {
     try {
       const activeSessions = await VideoModel.getActiveVideoSessions();

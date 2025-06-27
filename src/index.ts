@@ -1,3 +1,4 @@
+import configLoader from 'configs/config-loader.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -7,8 +8,8 @@ import { prisma } from './configs/prisma.js';
 import { redisClient } from './configs/redis.js';
 import { createRouter } from './routes/index.js';
 
-const PORT = process.env.PORT || 3000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const PORT = configLoader.config.PORT;
+const CORS_ORIGIN = configLoader.config.CORS_ORIGIN;
 
 const app = express();
 const server = http.createServer(app);

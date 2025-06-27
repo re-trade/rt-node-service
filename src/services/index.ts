@@ -24,7 +24,7 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
   >(httpServer, {
     cors: {
       origin: corsOrigin,
-      methods: ['GET', 'POST'],
+      methods: ['GET', 'POST', 'PATCH'],
     },
   });
 
@@ -50,7 +50,14 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
     socket.on('acceptCall', data => videoService.handleAcceptCall(socket, data));
     socket.on('rejectCall', data => videoService.handleRejectCall(socket, data));
     socket.on('endCall', data => videoService.handleEndCall(socket, data));
-    socket.on('signal', signal => videoService.handleSignaling(socket, signal));
+    socket.on('signal', (signal) => {
+      const signalWithPayload = {
+        ...signal,
+        payload: signal.data,
+        from: signal.from || socket.data.user?.id || '',
+      };
+      videoService.handleSignaling(socket, signalWithPayload);
+    });
   });
 
   return {

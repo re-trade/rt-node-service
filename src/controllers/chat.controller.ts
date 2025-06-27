@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
-import { prisma } from '../configs/prisma.js';
 import ChatModel from '../models/ChatModel.js';
-import type { ApiResponse, Message, Room, OnlineUser } from '../types/index.js';
+import type { ApiResponse, Message, OnlineUser, Room } from '../types/index.js';
 
 class ChatController {
-  // Get online users
+
   static async getOnlineUsers(req: Request, res: Response) {
     try {
       const users = await ChatModel.getOnlineUsers();
@@ -23,7 +22,6 @@ class ChatController {
     }
   }
 
-  // Get all rooms
   static async getRooms(req: Request, res: Response) {
     try {
       const rooms = await ChatModel.getRooms();
@@ -42,7 +40,6 @@ class ChatController {
     }
   }
 
-  // Get room by ID
   static async getRoomById(req: Request, res: Response) {
     try {
       const { roomId } = req.params;
@@ -74,7 +71,6 @@ class ChatController {
     }
   }
 
-  // Get room messages
   static async getRoomMessages(req: Request, res: Response) {
     try {
       const { roomId } = req.params;
@@ -101,7 +97,6 @@ class ChatController {
     }
   }
 
-  // Create new room
   static async createRoom(req: Request, res: Response) {
     try {
       const { name } = req.body;
@@ -122,7 +117,6 @@ class ChatController {
     }
   }
 
-  // Authenticate user
   static async authenticateUser(req: Request, res: Response) {
     try {
       const { username, email, name } = req.body;
@@ -143,7 +137,6 @@ class ChatController {
     }
   }
 
-  // Health check
   static async healthCheck(req: Request, res: Response) {
     try {
       const users = await ChatModel.getOnlineUsers();
@@ -168,8 +161,7 @@ class ChatController {
       });
     }
   }
-
-  // Clear room messages
+  
   static async clearRoomMessages(req: Request, res: Response) {
     try {
       const { roomId } = req.params;

@@ -6,7 +6,6 @@ import {
   Recording as ModelRecording,
 } from './models.js';
 
-// Common Types
 export interface ApiResponse<T = any> {
   success: boolean;
   message?: string;
@@ -20,15 +19,12 @@ export interface ApiResponse<T = any> {
   };
 }
 
-// Re-export base types
 export type { User } from './models.js';
 
-// Extended Types
 export interface OnlineUser extends User {
   isOnline: boolean;
 }
 
-// Chat Types
 export interface Message extends ModelMessage {
   sender?: OnlineUser;
 }
@@ -37,7 +33,6 @@ export interface Room extends ModelRoom {
   participants: OnlineUser[];
 }
 
-// Video Types
 export type VideoSession = ModelVideoSession;
 
 export interface VideoRoom {
@@ -58,9 +53,7 @@ export interface VideoCallSignal {
 
 export type Recording = ModelRecording;
 
-// Socket Types
 export interface ServerToClientEvents {
-  // Chat events
   message: (message: Message) => void;
   userJoined: (user: OnlineUser) => void;
   userLeft: (user: OnlineUser) => void;
@@ -76,22 +69,18 @@ export interface ServerToClientEvents {
     roomId: string;
   }) => void;
 
-  // Video call events
   incomingCall: (data: { callerId: string; callerName: string; roomId: string }) => void;
   callAccepted: (data: { accepterId: string; roomId: string }) => void;
   callRejected: (data: { rejecterId: string; reason: string | null }) => void;
   callEnded: (data: { enderId: string; roomId: string; duration: number }) => void;
   signal: (signal: VideoCallSignal) => void;
 
-  // Error events
   error: (error: { message: string; code: string | null }) => void;
 }
 
 export interface ClientToServerEvents {
-  // Authentication
   authenticate: (userData: { username: string; email: string; name: string }) => void;
 
-  // Chat events
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
@@ -99,7 +88,6 @@ export interface ClientToServerEvents {
   typing: (data: { roomId: string; isTyping: boolean }) => void;
   markMessageRead: (data: { messageId: string; roomId: string }) => void;
 
-  // Video call events
   initiateCall: (data: { recipientId: string; roomId: string }) => void;
   acceptCall: (data: { callerId: string; roomId: string }) => void;
   rejectCall: (data: { callerId: string; reason?: string }) => void;
