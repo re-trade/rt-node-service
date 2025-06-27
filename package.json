@@ -9,12 +9,9 @@
   "author": "@AnataAria",
   "license": "MIT",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx --watch src/index.ts",
+    "dev": "FORCE_COLOR=1 tsx watch src/index.ts",
     "start": "node ./build/index.js",
     "clean": "rimraf ./build",
     "type-check": "tsc --noEmit",
@@ -27,13 +24,19 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.13.4",
+    "@grpc/proto-loader": "^0.7.15",
+    "@prisma/client": "^6.9.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.2",
+    "express": "^5.1.0",
     "helmet": "^7.1.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^11.1.0",
+    "prisma": "^6.9.0",
+    "redis": "^5.5.6",
     "simple-peer": "^9.11.1",
     "socket.io": "^4.7.5",
     "uuid": "^9.0.1"
@@ -41,15 +44,14 @@
   "devDependencies": {
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.17",
+    "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^22.7.4",
+    "@types/node": "^24.0.1",
     "@types/uuid": "^9.0.7",
+    "grpc-tools": "^1.13.0",
     "prettier": "^3.0.0",
     "rimraf": "^5.0.5",
-    "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
-    "turbo": "^2.0.14",
-    "typescript": "^5.6.2"
+    "typescript": "^5.8.3"
   }
 }

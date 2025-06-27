@@ -1,48 +1,103 @@
-# Vietnam Sea Monorepo Mobile Backend  
+# RT Node Service - Real-time Chat Socket and WebRTC Server
 
 ## Overview  
-This is the mobile backend service for the **Vietnam Sea (VNS)** monorepo project. It provides essential APIs and functionality to support the ecosystem of VNS, including services for user management, booking, payments, and more.  
+This is a modern Node.js backend service built with TypeScript that provides real-time chat functionality using Socket.IO and WebRTC signaling server for video/audio calls. The project is configured with Turbo for efficient monorepo management and development.
 
 ## Contributors  
 - [@AnataAria](https://github.com/AnataAria)  
-- [@haiha0402](https://github.com/haiha0402)  
 
 ## Features  
-- User authentication and authorization  
-- Tour booking and payment management  
-- Feedback and review handling  
-- Integration with external services (e.g., Consul, MongoDB)  
+- 💬 **Real-time Chat**: Socket.IO based chat system with rooms and private messaging
+- 📹 **WebRTC Signaling**: Video/audio call signaling server with peer-to-peer connections
+- 🔐 **Authentication**: JWT-based authentication middleware
+- 🏗️ **Modern Architecture**: Clean separation of concerns with controllers, services, and middleware
+- 🚀 **Turbo Monorepo**: Optimized build system and development workflow
+- 📝 **TypeScript**: Full type safety and modern JavaScript features
+- 🛡️ **Security**: Helmet, CORS, and input validation
+- 📊 **API Documentation**: Built-in API documentation and health checks
 
 ## Requirements  
-Before starting development, ensure you have the following installed and running:  
-- [Consul](https://www.consul.io/) (Service discovery and configuration)  
-- [NodeJs](https://nodejs.org/en) (Runtime environment, Requite nodejs > 20)   
-- [Docker Server](https://www.docker.com)
+Before starting development, ensure you have the following installed:  
+- [Node.js](https://nodejs.org/en) (v18 or higher)
+- [Yarn](https://yarnpkg.com/) (Package manager)
+- [Docker](https://www.docker.com) (Optional, for containerization)
 ## Development Setup  
 
 ### 1. Clone the Repository  
 ```bash  
-git clone https://github.com/vietnam-sea/sea-node-service.git  
-cd sea-node-service
+git clone https://github.com/re-trade/rt-node-service.git  
+cd rt-node-service
 ```
-### 2. Build The Application (Remember your dev device should have maven installed or using maven wrapper)
+
+### 2. Install Dependencies
 ```bash
-mvn clean install
+yarn install
 ```
-### 3. Insert The Value From .env.examples into your environment
-Steps
-- Prepare all env values that defined in .env.examples
-- Add this env to env of your IDE
-### 4. Run docker compose for setup tools supports for development
-Steps
-- Create new .env file
-- Copy template from .env.example to .env file
-- Add value into it
-- Run docker compose dev
+
+### 3. Environment Configuration
 ```bash
-docker compose -f docker-compose.dev.yaml up -d 
+# Copy the environment template
+cp .env.example .env
+
+# Edit the .env file with your configuration
+nano .env
 ```
-### 5. Enjoy and began to code
+
+### 4. Development Server
+```bash
+# Start development server with hot reload
+yarn dev
+
+# Or build and start production server
+yarn build
+yarn start
+```
+
+### 5. Using Turbo (Optional)
+```bash
+# Build with Turbo
+yarn turbo:build
+
+# Development with Turbo
+yarn turbo:dev
+```
+
+## API Endpoints
+
+### Health & Documentation
+- `GET /` - Service information
+- `GET /api/health` - Health check
+- `GET /api/docs` - API documentation
+
+### Chat API
+- `GET /api/chat/health` - Chat service health
+- `GET /api/chat/users/online` - Get online users
+- `GET /api/chat/rooms` - Get all chat rooms
+- `GET /api/chat/rooms/:roomId` - Get room details
+- `GET /api/chat/rooms/:roomId/messages` - Get room messages
+
+### WebRTC API
+- `GET /api/webrtc/health` - WebRTC service health
+- `GET /api/webrtc/rooms/active` - Get active rooms
+- `GET /api/webrtc/calls/active` - Get active calls
+- `POST /api/webrtc/rooms` - Create new room
+- `GET /api/webrtc/rooms/:roomId/status` - Check room status
+
+## Socket.IO Events
+
+### Chat Events
+- `authenticate` - User authentication
+- `joinRoom` - Join a chat room
+- `leaveRoom` - Leave a chat room
+- `sendMessage` - Send a message
+- `typing` - Typing indicator
+
+### WebRTC Events
+- `join-call` - Join a video/audio call
+- `leave-call` - Leave a call
+- `signal` - WebRTC signaling data
+- `start-call` - Start a new call
+- `end-call` - End a call
 
 ## Conventions
 ### 1. Git Conventions

@@ -6,8 +6,6 @@ import http from 'http';
 import configLoader from './configs/config-loader.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { createRoutes } from './routes/index.js';
-import { SocketService } from './services/socket.service.js';
-import { WebRTCService } from './services/webrtc.service.js';
 
 const PORT = configLoader.config.PORT || 3000;
 const CORS_ORIGIN = configLoader.config.CORS_ORIGIN || 'http://localhost:3000';
@@ -30,27 +28,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 console.log('🚀 Initializing services...');
-const socketService = new SocketService(httpServer, CORS_ORIGIN);
-const webrtcService = new WebRTCService(socketService.getIO());
 
-app.use('/api', createRoutes(socketService, webrtcService));
-
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'RT Node Service - Real-time Chat Socket and WebRTC Server',
-    version: '1.0.0',
-    endpoints: {
-      api: '/api',
-      docs: '/api/docs',
-      health: '/api/health',
-    },
-    services: {
-      chat: 'Socket.IO based real-time chat',
-      webrtc: 'WebRTC signaling server for video/audio calls',
-    },
-  });
-});
+app.use('/api', createRoutes(httpServer, CORS_ORIGIN));
 
 app.use(notFoundHandler);
 app.use(errorHandler);

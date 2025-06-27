@@ -10,217 +10,275 @@ import {
   Message,
   Room,
 } from '../types/socket.types.js';
+import { redisClient } from '../configs/redis.js';
+import { prisma } from '../configs/prisma.js';
 
-export class SocketService {
-  private io: SocketIOServer<
-    ClientToServerEvents,
-    ServerToClientEvents,
-    InterServerEvents,
-    SocketData
-  >;
-  private users: Map<string, User> = new Map();
-  private rooms: Map<string, Room> = new Map();
-  private messages: Map<string, Message[]> = new Map();
+let io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
-  constructor(httpServer: HttpServer, corsOrigin: string) {
-    this.io = new SocketIOServer(httpServer, {
-      cors: {
-        origin: corsOrigin,
-        methods: ['GET', 'POST'],
-      },
+export function createSocketService(httpServer: HttpServer, corsOrigin: string) {
+  io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: corsOrigin,
+      methods: ['GET', 'POST'],
+    },
+  });
+
+  setupEventHandlers();
+
+  return {
+    io,
+    getIO() {
+      return io;
+    },
+  };
+}
+
+function setupEventHandlers(): void {
+  io.on('connection', socket => {
+    console.log(`User connected: ${socket.id}`);
+
+    socket.on('authenticate', async (userData: { username: string; avatar?: string }) => {
+      const user: User = {
+        id: socket.id,
+        username: userData.username,
+        avatar: userData.avatar,
+        isOnline: true,
+      };
+
+      await redisClient.hSet(`user:${user.id}`, {
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar || '',
+      });
+      await redisClient.sAdd('onlineUsers', user.id);
+
+      socket.data.user = user;
+      socket.data.rooms = new Set();
+
+      socket.broadcast.emit('userJoined', user);
+
+      const users = await getOnlineUsers();
+      socket.emit('onlineUsers', users);
     });
 
-    this.setupEventHandlers();
-  }
+    socket.on('joinRoom', async (roomId: string) => {
+      if (!socket.data.user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
 
-  private setupEventHandlers(): void {
-    this.io.on('connection', socket => {
-      console.log(`User connected: ${socket.id}`);
-
-      // Handle user authentication and setup
-      socket.on('authenticate', (userData: { username: string; avatar?: string }) => {
-        const user: User = {
-          id: socket.id,
-          username: userData.username,
-          avatar: userData.avatar,
-          isOnline: true,
-        };
-
-        this.users.set(socket.id, user);
-        socket.data.user = user;
-        socket.data.rooms = new Set();
-
-        // Notify all clients about the new user
-        socket.broadcast.emit('userJoined', user);
-
-        // Send current online users to the new user
-        socket.emit('onlineUsers', Array.from(this.users.values()));
+      await prisma.room.upsert({
+        where: { id: roomId },
+        create: { id: roomId, name: `Room ${roomId}` },
+        update: {},
       });
 
-      // Handle joining a room
-      socket.on('joinRoom', (roomId: string) => {
-        if (!socket.data.user) {
-          socket.emit('error', { message: 'User not authenticated' });
-          return;
-        }
+      socket.join(roomId);
+      socket.data.rooms.add(roomId);
 
-        socket.join(roomId);
-        socket.data.rooms.add(roomId);
+      await redisClient.sAdd(`room:${roomId}:participants`, socket.data.user.id);
 
-        let room = this.rooms.get(roomId);
-        if (!room) {
-          room = {
-            id: roomId,
-            name: `Room ${roomId}`,
-            participants: [],
-            createdAt: new Date(),
-            isPrivate: false,
-          };
-          this.rooms.set(roomId, room);
-          this.messages.set(roomId, []);
-        }
+      const room: Room = {
+        id: roomId,
+        name: `Room ${roomId}`,
+        participants: [],
+        createdAt: new Date(),
+        isPrivate: false,
+      };
 
-        // Add user to room participants if not already present
-        if (!room.participants.find((p: any) => p.id === socket.data.user.id)) {
-          room.participants.push(socket.data.user);
-        }
+      socket.emit('roomJoined', room);
+      socket.to(roomId).emit('userJoined', socket.data.user);
 
-        socket.emit('roomJoined', room);
-        socket.to(roomId).emit('userJoined', socket.data.user);
+      const recentMessages = await getRoomMessages(roomId, 50, 0);
+      recentMessages.forEach(message => {
+        socket.emit('message', message);
+      });
+    });
 
-        // Send recent messages to the user
-        const roomMessages = this.messages.get(roomId) || [];
-        roomMessages.slice(-50).forEach(message => {
-          socket.emit('message', message);
-        });
+    socket.on('leaveRoom', async (roomId: string) => {
+      if (!socket.data.user) return;
+
+      socket.leave(roomId);
+      socket.data.rooms.delete(roomId);
+
+      await redisClient.sRem(`room:${roomId}:participants`, socket.data.user.id);
+      socket.to(roomId).emit('userLeft', socket.data.user);
+      socket.emit('roomLeft', roomId);
+    });
+
+    socket.on('createRoom', async (data: { name: string; isPrivate: boolean }) => {
+      if (!socket.data.user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      const roomId = uuidv4();
+      await prisma.room.create({
+        data: {
+          id: roomId,
+          name: data.name,
+        },
       });
 
-      // Handle leaving a room
-      socket.on('leaveRoom', (roomId: string) => {
-        if (!socket.data.user) return;
+      await redisClient.sAdd(`room:${roomId}:participants`, socket.data.user.id);
 
-        socket.leave(roomId);
-        socket.data.rooms.delete(roomId);
+      socket.join(roomId);
+      socket.data.rooms.add(roomId);
 
-        const room = this.rooms.get(roomId);
-        if (room) {
-          room.participants = room.participants.filter((p: any) => p.id !== socket.data.user.id);
+      const room: Room = {
+        id: roomId,
+        name: data.name,
+        participants: [socket.data.user],
+        createdAt: new Date(),
+        isPrivate: data.isPrivate,
+      };
+
+      socket.emit('roomCreated', room);
+    });
+
+    socket.on('sendMessage', async (data: { content: string; roomId: string }) => {
+      if (!socket.data.user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      if (!socket.data.rooms.has(data.roomId)) {
+        socket.emit('error', { message: 'You are not in this room' });
+        return;
+      }
+
+      const message = await prisma.message.create({
+        data: {
+          id: uuidv4(),
+          content: data.content,
+          roomId: data.roomId,
+          senderId: socket.data.user.id,
+        },
+      });
+
+      await redisClient.lPush(`room:${data.roomId}:messages`, JSON.stringify(message));
+      await redisClient.lTrim(`room:${data.roomId}:messages`, 0, 999);
+
+      const outMessage: Message = {
+        id: message.id,
+        content: message.content,
+        senderId: message.senderId,
+        senderUsername: socket.data.user.username,
+        roomId: message.roomId,
+        timestamp: message.createdAt,
+        type: 'text',
+      };
+
+      io.to(data.roomId).emit('message', outMessage);
+    });
+
+    socket.on('typing', (data: { roomId: string; isTyping: boolean }) => {
+      if (!socket.data.user || !socket.data.rooms.has(data.roomId)) return;
+
+      socket.to(data.roomId).emit('typing', {
+        userId: socket.data.user.id,
+        username: socket.data.user.username,
+        isTyping: data.isTyping,
+      });
+    });
+
+    socket.on('disconnect', async () => {
+      console.log(`User disconnected: ${socket.id}`);
+
+      if (socket.data.user) {
+        await redisClient.sRem('onlineUsers', socket.data.user.id);
+
+        for (const roomId of socket.data.rooms) {
+          await redisClient.sRem(`room:${roomId}:participants`, socket.data.user.id);
           socket.to(roomId).emit('userLeft', socket.data.user);
         }
 
-        socket.emit('roomLeft', roomId);
-      });
-
-      // Handle creating a new room
-      socket.on('createRoom', (data: { name: string; isPrivate: boolean }) => {
-        if (!socket.data.user) {
-          socket.emit('error', { message: 'User not authenticated' });
-          return;
-        }
-
-        const roomId = uuidv4();
-        const room: Room = {
-          id: roomId,
-          name: data.name,
-          participants: [socket.data.user],
-          createdAt: new Date(),
-          isPrivate: data.isPrivate,
-        };
-
-        this.rooms.set(roomId, room);
-        this.messages.set(roomId, []);
-
-        socket.join(roomId);
-        socket.data.rooms.add(roomId);
-        socket.emit('roomCreated', room);
-      });
-
-      // Handle sending messages
-      socket.on('sendMessage', (data: { content: string; roomId: string }) => {
-        if (!socket.data.user) {
-          socket.emit('error', { message: 'User not authenticated' });
-          return;
-        }
-
-        if (!socket.data.rooms.has(data.roomId)) {
-          socket.emit('error', { message: 'You are not in this room' });
-          return;
-        }
-
-        const message: Message = {
-          id: uuidv4(),
-          content: data.content,
-          senderId: socket.data.user.id,
-          senderUsername: socket.data.user.username,
-          roomId: data.roomId,
-          timestamp: new Date(),
-          type: 'text',
-        };
-
-        // Store message
-        const roomMessages = this.messages.get(data.roomId) || [];
-        roomMessages.push(message);
-        this.messages.set(data.roomId, roomMessages);
-
-        // Broadcast message to all users in the room
-        this.io.to(data.roomId).emit('message', message);
-      });
-
-      // Handle typing indicators
-      socket.on('typing', (data: { roomId: string; isTyping: boolean }) => {
-        if (!socket.data.user || !socket.data.rooms.has(data.roomId)) return;
-
-        socket.to(data.roomId).emit('typing', {
-          userId: socket.data.user.id,
-          username: socket.data.user.username,
-          isTyping: data.isTyping,
-        });
-      });
-
-      // Handle disconnection
-      socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
-
-        if (socket.data.user) {
-          // Remove user from all rooms
-          socket.data.rooms.forEach((roomId: any) => {
-            const room = this.rooms.get(roomId);
-            if (room) {
-              room.participants = room.participants.filter(
-                (p: any) => p.id !== socket.data.user.id
-              );
-              socket.to(roomId).emit('userLeft', socket.data.user);
-            }
-          });
-
-          // Remove user from online users
-          this.users.delete(socket.id);
-
-          // Notify all clients about user leaving
-          socket.broadcast.emit('userLeft', socket.data.user);
-        }
-      });
+        socket.broadcast.emit('userLeft', socket.data.user);
+      }
     });
+  });
+}
+
+export async function getOnlineUsers(): Promise<User[]> {
+  const userIds = await redisClient.sMembers('onlineUsers');
+  const users = await Promise.all(
+    userIds.map(async userId => {
+      const userData = await redisClient.hGetAll(`user:${userId}`);
+      return {
+        id: userData.id,
+        username: userData.username,
+        avatar: userData.avatar,
+        isOnline: true,
+      } as User;
+    })
+  );
+  return users;
+}
+
+export async function getRooms(): Promise<Room[]> {
+  const cached = await redisClient.get('chat:rooms');
+  if (cached) {
+    return JSON.parse(cached);
   }
 
-  public getIO(): SocketIOServer<
-    ClientToServerEvents,
-    ServerToClientEvents,
-    InterServerEvents,
-    SocketData
-  > {
-    return this.io;
+  const rooms = await prisma.room.findMany({
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const roomsWithParticipants = await Promise.all(
+    rooms.map(async room => {
+      const participantIds = await redisClient.sMembers(`room:${room.id}:participants`);
+      const participants = await Promise.all(
+        participantIds.map(async userId => {
+          const userData = await redisClient.hGetAll(`user:${userId}`);
+          return {
+            id: userData.id,
+            username: userData.username,
+            avatar: userData.avatar,
+            isOnline: true,
+          } as User;
+        })
+      );
+
+      return {
+        id: room.id,
+        name: room.name,
+        participants,
+        createdAt: room.createdAt,
+        isPrivate: false,
+      } as Room;
+    })
+  );
+
+  await redisClient.set('chat:rooms', JSON.stringify(roomsWithParticipants), { EX: 60 });
+  return roomsWithParticipants;
+}
+
+export async function getRoomMessages(roomId: string, limit = 50, offset = 0): Promise<Message[]> {
+  const cacheKey = `chat:room:${roomId}:messages:${limit}:${offset}`;
+  const cached = await redisClient.get(cacheKey);
+
+  if (cached) {
+    return JSON.parse(cached);
   }
 
-  public getOnlineUsers(): User[] {
-    return Array.from(this.users.values());
-  }
+  const messages = await prisma.message.findMany({
+    where: { roomId },
+    orderBy: { createdAt: 'desc' },
+    skip: offset,
+    take: limit,
+  });
 
-  public getRooms(): Room[] {
-    return Array.from(this.rooms.values());
-  }
+  const formattedMessages = messages.reverse().map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    senderId: msg.senderId,
+    senderUsername: '',
+    roomId: msg.roomId,
+    timestamp: msg.createdAt,
+    type: 'text' as const,
+  }));
 
-  public getRoomMessages(roomId: string): Message[] {
-    return this.messages.get(roomId) || [];
-  }
+  await redisClient.set(cacheKey, JSON.stringify(formattedMessages), { EX: 60 });
+  return formattedMessages;
 }

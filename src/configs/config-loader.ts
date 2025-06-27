@@ -7,6 +7,7 @@ type TRetradeEnvironment = {
   JWT_SECRET: string;
   REDIS_URL: string;
   SOCKET_PORT: number;
+  DATABASE_URL: string;
 };
 const validators: TEnvValidatorKeyMap<TRetradeEnvironment> = {
   NODE_ENV: { required: true, default: 'development' },
@@ -15,6 +16,7 @@ const validators: TEnvValidatorKeyMap<TRetradeEnvironment> = {
   JWT_SECRET: { required: true, default: 'your-secret-key' },
   REDIS_URL: { required: false, default: 'redis://localhost:6379' },
   SOCKET_PORT: { required: true, default: 3001 },
+  DATABASE_URL: { required: true, default: 'postgresql://localhost:5432/retrade' },
 };
 const configLoader = new EnvLoader<TRetradeEnvironment>(validators);
 

@@ -30,9 +30,10 @@
       "@models/*": ["./src/models/*"]
     }
   },
-  "exclude": ["node_modules", "./build"],
+  "exclude": ["node_modules", "./build", "/generated"],
   "include": ["./src"],
   "ts-node": {
-    "esm": true
+    "esm": true,
+    "transpileOnly": true
   }
 }
