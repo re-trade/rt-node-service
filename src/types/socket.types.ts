@@ -1,47 +1,74 @@
-export interface User {
-  id: string;
-  username: string;
-  avatar?: string;
+import { Message, Room, User } from './models.js';
+
+export interface OnlineUser extends User {
   isOnline: boolean;
+  avatar?: string;
 }
 
-export interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  senderUsername: string;
+export interface VideoCallSignal {
+  type: 'offer' | 'answer' | 'ice-candidate';
+  payload: any;
+  from: string;
+  to: string;
+}
+
+export interface CallStatus {
+  isActive: boolean;
+  participants: string[];
+  startTime?: Date;
   roomId: string;
-  timestamp: Date;
-  type: 'text' | 'image' | 'file';
 }
 
-export interface Room {
+export interface VideoRoom {
   id: string;
-  name: string;
-  participants: User[];
-  createdAt: Date;
-  isPrivate: boolean;
+  participants: OnlineUser[];
+  startTime: Date;
+  status: 'active' | 'ended';
+  endTime?: Date;
 }
 
 export interface ServerToClientEvents {
   message: (message: Message) => void;
-  userJoined: (user: User) => void;
-  userLeft: (user: User) => void;
+  userJoined: (user: OnlineUser) => void;
+  userLeft: (user: OnlineUser) => void;
   roomCreated: (room: Room) => void;
   roomJoined: (room: Room) => void;
   roomLeft: (roomId: string) => void;
-  onlineUsers: (users: User[]) => void;
+  onlineUsers: (users: OnlineUser[]) => void;
   typing: (data: { userId: string; username: string; isTyping: boolean }) => void;
+  messageRead: (data: {
+    messageId: string;
+    userId: string;
+    readBy: string[];
+    roomId: string;
+  }) => void;
+
+  // Video call events
+  incomingCall: (data: { callerId: string; callerName: string; roomId: string }) => void;
+  callAccepted: (data: { accepterId: string; roomId: string }) => void;
+  callRejected: (data: { rejecterId: string; reason?: string }) => void;
+  callEnded: (data: { enderId: string; roomId: string; duration: number }) => void;
+  signaling: (signal: VideoCallSignal) => void;
+
+  // System events
   error: (error: { message: string; code?: string }) => void;
 }
 
 export interface ClientToServerEvents {
-  authenticate: (userData: { username: string; avatar?: string }) => void;
+  authenticate: (userData: { username: string; email: string; name: string }) => void;
+
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
-  createRoom: (data: { name: string; isPrivate: boolean }) => void;
+  createRoom: (data: { name: string }) => void;
   typing: (data: { roomId: string; isTyping: boolean }) => void;
+  markMessageRead: (data: { messageId: string; roomId: string }) => void;
+
+  initiateCall: (data: { recipientId: string; roomId: string }) => void;
+  acceptCall: (data: { callerId: string; roomId: string }) => void;
+  rejectCall: (data: { callerId: string; reason?: string }) => void;
+  endCall: (data: { roomId: string }) => void;
+  signal: (signal: VideoCallSignal) => void;
 }
 
 export interface InterServerEvents {
@@ -49,6 +76,7 @@ export interface InterServerEvents {
 }
 
 export interface SocketData {
-  user: User;
+  user?: OnlineUser;
   rooms: Set<string>;
+  activeCall?: CallStatus;
 }
