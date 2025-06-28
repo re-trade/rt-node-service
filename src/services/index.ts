@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { Server as HttpServer } from 'http';
 import path from 'path';
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import type {
   ClientToServerEvents,
@@ -16,6 +16,19 @@ import VideoService from './video.service.js';
 import { createWebRTCService } from './webrtc.service.js';
 
 const RECORDINGS_DIR = path.join(process.cwd(), 'recordings');
+
+const configChatIo = (
+  socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+  chatService: ChatService
+) => {
+  socket.on('authenticate', data => chatService.handleAuthenticate(socket, data));
+  socket.on('joinRoom', roomId => chatService.handleJoinRoom(socket, roomId));
+  socket.on('leaveRoom', roomId => chatService.handleLeaveRoom(socket, roomId));
+  socket.on('sendMessage', data => chatService.handleSendMessage(socket, data));
+  socket.on('typing', data => chatService.handleTyping(socket, data));
+  socket.on('markMessageRead', data => chatService.handleMarkMessageRead(socket, data));
+  socket.on('disconnect', () => chatService.handleDisconnect(socket));
+};
 
 export function createSocketService(httpServer: HttpServer, corsOrigin: string) {
   const io = new SocketIOServer<
@@ -41,13 +54,8 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
   io.on('connection', socket => {
     console.log(`User connected: ${socket.id}`);
 
-    socket.on('authenticate', data => chatService.handleAuthenticate(socket, data));
-    socket.on('joinRoom', roomId => chatService.handleJoinRoom(socket, roomId));
-    socket.on('leaveRoom', roomId => chatService.handleLeaveRoom(socket, roomId));
-    socket.on('sendMessage', data => chatService.handleSendMessage(socket, data));
-    socket.on('typing', data => chatService.handleTyping(socket, data));
-    socket.on('markMessageRead', data => chatService.handleMarkMessageRead(socket, data));
-    socket.on('disconnect', () => chatService.handleDisconnect(socket));
+    configChatIo(socket, chatService);
+
     socket.on('initiateCall', data => videoService.handleInitiateCall(socket, data));
     socket.on('acceptCall', data => videoService.handleAcceptCall(socket, data));
     socket.on('rejectCall', async data => {
@@ -60,7 +68,6 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
     });
     socket.on('endCall', data => videoService.handleEndCall(socket, data));
 
-    // WebRTC handling
     socket.on('join-call', data => {
       const room = webRTCService.getActiveRooms().find(r => r.id === data.roomId);
       if (room) webRTCService.createRoom(2);
@@ -88,7 +95,3 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
     webRTCService,
   };
 }
-
-export { default as ChatService } from './chat.service.js';
-export { default as VideoService } from './video.service.js';
-

@@ -16,15 +16,13 @@ export async function createRecording(callSessionId: string): Promise<Recording>
 
   const filePath = path.join(RECORDINGS_DIR, `${callSessionId}.webm`);
 
-  const recording = await prisma.recording.create({
+  return await prisma.recording.create({
     data: {
       callSessionId,
       filePath,
       startTime: new Date(),
     },
   });
-
-  return recording;
 }
 
 export async function stopRecording(callSessionId: string): Promise<Recording | null> {
@@ -36,12 +34,10 @@ export async function stopRecording(callSessionId: string): Promise<Recording | 
     return null;
   }
 
-  const updatedRecording = await prisma.recording.update({
+  return await prisma.recording.update({
     where: { id: recording.id },
     data: { endTime: new Date() },
   });
-
-  return updatedRecording;
 }
 
 export async function getRecordingsByCallSession(callSessionId: string): Promise<Recording[]> {

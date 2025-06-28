@@ -10,6 +10,7 @@ class ChatController {
         success: true,
         data: users,
         count: users.length,
+        message: 'Online users fetched successfully',
       };
       res.json(response);
     } catch (error) {
