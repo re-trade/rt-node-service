@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import configLoader from '../configs/config-loader.js';
 
@@ -55,22 +55,4 @@ export const optionalAuth = (
   }
 
   next();
-};
-
-export const generateToken = (payload: {
-  id: string;
-  username: string;
-  email?: string;
-}): string => {
-  return jwt.sign(payload, configLoader.config.JWT_SECRET, {
-    expiresIn: '24h',
-  });
-};
-
-export const verifyToken = (token: string): any => {
-  try {
-    return jwt.verify(token, configLoader.config.JWT_SECRET);
-  } catch (error) {
-    throw new Error('Invalid token');
-  }
 };

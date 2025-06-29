@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { Server as HttpServer } from 'http';
 import { createSocketService } from '../services/index.js';
-import chatRoutes from './chat.route.js';
-import videoRoutes from './video.route.js';
 
 export const createRouter = (httpServer: HttpServer, corsOrigin: string) => {
   const router = Router();
@@ -17,9 +15,6 @@ export const createRouter = (httpServer: HttpServer, corsOrigin: string) => {
       uptime: process.uptime(),
     });
   });
-
-  router.use('/chat', chatRoutes);
-  router.use('/video', videoRoutes);
 
   router.get('/docs', (req, res) => {
     res.json({

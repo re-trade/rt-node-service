@@ -1,10 +1,8 @@
 export interface User {
   id: string;
-  name: string;
-  email: string;
   username: string;
-  createdAt: Date;
-  updatedAt: Date;
+  role: string[];
+  avatarUrl: string;
 }
 
 export interface Message {
@@ -18,10 +16,11 @@ export interface Message {
 
 export interface Room {
   id: string;
-  name: string;
   isPrivate: boolean;
   createdAt: Date;
   updatedAt: Date;
+  sellerId: string;
+  customerId: string;
   messages?: Message[];
 }
 

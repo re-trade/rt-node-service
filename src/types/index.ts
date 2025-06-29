@@ -1,9 +1,9 @@
 import {
-  User,
   Message as ModelMessage,
-  Room as ModelRoom,
-  VideoSession as ModelVideoSession,
   Recording as ModelRecording,
+  Room as ModelRoom,
+  User,
+  VideoSession as ModelVideoSession,
 } from './models.js';
 
 export type { WebRTCClientToServerEvents, WebRTCServerToClientEvents } from './webrtc.types.js';
@@ -43,14 +43,6 @@ export interface VideoRoom {
   maxParticipants: number;
   isActive: boolean;
   createdAt: Date;
-}
-
-export interface VideoCallSignal {
-  type: 'offer' | 'answer' | 'ice-candidate';
-  data: any;
-  from: string | null;
-  to: string;
-  roomId: string;
 }
 
 export type Recording = ModelRecording;
@@ -94,7 +86,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  authenticate: (userData: { username: string; email: string; name: string }) => void;
+  authenticate: (userData: { token?: string; senderType: 'customer' | 'seller' }) => void;
 
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;

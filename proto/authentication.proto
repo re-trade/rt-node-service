@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package authentication;
+
+enum TokenType {
+  TOKEN_TYPE_UNSPECIFIED = 0;
+  ACCESS_TOKEN = 1;
+  REFRESH_TOKEN = 2;
+  TWO_FA_TOKEN = 3;
+}
+
+message TokenRequest {
+  string token = 1;
+  TokenType type = 2;
+}
+
+message UserTokenInfo {
+  string account_id = 1;
+  repeated string roles = 2;
+  string username = 3;
+  bool is_active = 4;
+  bool is_verified = 5;
+  TokenType type = 6;
+}
+
+message CustomerDetailInfo {
+  string username = 1;
+  string email = 2;
+  repeated string roles = 3;
+  bool is_active = 4;
+  bool is_verified = 5;
+  string first_name = 6;
+  string last_name = 7;
+  string phone = 8;
+  string address = 9;
+  string account_id = 10;
+  string customer_id = 11;
+  string avatar_url = 12;
+}
+
+message SellerDetailInfo {
+  string username = 1;
+  string email = 2;
+  repeated string roles = 3;
+  bool is_active = 4;
+  bool is_verified = 5;
+  string seller_name = 6;
+  string avatar_url = 7;
+  string account_id = 8;
+  string seller_id = 9;
+}
+
+message VerifyTokenResponse {
+  bool is_valid = 1;
+  UserTokenInfo user_info = 2;
+  repeated string error_messages = 3;
+}
+
+message GetCustomerProfileResponse {
+  bool is_valid = 1;
+  CustomerDetailInfo user_info = 2;
+  repeated string error_messages = 3;
+}
+
+message GetSellerProfileResponse {
+  bool is_valid = 1;
+  SellerDetailInfo user_info = 2;
+  repeated string error_messages = 3;
+}
+
+service GrpcTokenService {
+  rpc VerifyToken (TokenRequest) returns (VerifyTokenResponse);
+  rpc GetCustomerProfile (TokenRequest) returns (GetCustomerProfileResponse);
+  rpc GetSellerProfile (TokenRequest) returns (GetSellerProfileResponse);
+}

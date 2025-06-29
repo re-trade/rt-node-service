@@ -22,8 +22,7 @@ const getUserClaimsFromJwt = (token: string, tokenType: JwtTokenType): UserClaim
       return null;
     }
 
-    const user = decoded.user as UserClaims;
-    return user;
+    return decoded.user as UserClaims;
   } catch (err) {
     return null;
   }
@@ -37,3 +36,5 @@ const isTokenValid = (token: string, tokenType: JwtTokenType): boolean => {
     return false;
   }
 };
+
+export { getUserClaimsFromJwt, isTokenValid };

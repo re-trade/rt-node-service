@@ -2,7 +2,6 @@ import { Message, Room, User } from './models.js';
 
 export interface OnlineUser extends User {
   isOnline: boolean;
-  avatar?: string;
 }
 
 export interface VideoCallSignal {
@@ -43,19 +42,17 @@ export interface ServerToClientEvents {
     roomId: string;
   }) => void;
 
-  // Video call events
   incomingCall: (data: { callerId: string; callerName: string; roomId: string }) => void;
-  callAccepted: (data: { accepterId: string; roomId: string }) => void;
+  callAccepted: (data: { acceptedId: string; roomId: string }) => void;
   callRejected: (data: { rejecterId: string; reason?: string }) => void;
   callEnded: (data: { enderId: string; roomId: string; duration: number }) => void;
   signaling: (signal: VideoCallSignal) => void;
 
-  // System events
   error: (error: { message: string; code?: string }) => void;
 }
 
 export interface ClientToServerEvents {
-  authenticate: (userData: { username: string; email: string; name: string }) => void;
+  authenticate: (data: { token?: string; senderType: 'customer' | 'seller' }) => void;
 
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;

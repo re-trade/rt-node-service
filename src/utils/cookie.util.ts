@@ -1,29 +1,30 @@
-import { Request } from 'express';
+import type { Request } from 'express';
+import type { IncomingMessage } from 'http';
 import { parse as parseCookie } from 'cookie';
 import { JwtTokenType } from '../types/jwt.types.js';
 
 export type JwtCookieMap = Partial<Record<JwtTokenType, string>>;
 
-export function getCookies(req: Request): Record<string, string | undefined> {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) return {};
-  return parseCookie(cookieHeader);
+function getCookies(req: Request | IncomingMessage): Record<string, string | undefined> {
+  const cookieHeader = req.headers?.cookie;
+  return cookieHeader ? parseCookie(cookieHeader) : {};
 }
 
-export function isValidTokenCookieName(name: string): name is JwtTokenType {
-  return Object.values(JwtTokenType).includes(name.toUpperCase() as JwtTokenType);
+function isValidTokenCookieName(name: string): name is JwtTokenType {
+  return Object.values(JwtTokenType).includes(name as JwtTokenType);
 }
 
-export function getCookieMap(req: Request): JwtCookieMap {
-  const rawCookies = getCookies(req);
+function getCookieMap(req: Request | IncomingMessage): JwtCookieMap {
+  const cookies = getCookies(req);
   const result: JwtCookieMap = {};
 
-  for (const [name, value] of Object.entries(rawCookies)) {
-    const upperName = name.toUpperCase();
-    if (isValidTokenCookieName(upperName) && value) {
-      result[upperName as JwtTokenType] = value;
+  for (const [name, value] of Object.entries(cookies)) {
+    const key = name.toUpperCase() as JwtTokenType;
+    if (isValidTokenCookieName(key)) {
+      result[key] = value;
     }
   }
-
   return result;
 }
+
+export { getCookies, getCookieMap, isValidTokenCookieName };
