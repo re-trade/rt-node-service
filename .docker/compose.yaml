@@ -15,6 +15,7 @@ services:
       DB_SCHEMA: chat
       MAIN_SERVICE_HOST: main-service
       MAIN_SERVICE_GRPC_PORT: 9080
+      DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@retrade-database:5432/${DB_NAME}?schema=chat
     labels:
       - 'traefik.enable=true'
       - 'traefik.docker.network=retrade-network'
