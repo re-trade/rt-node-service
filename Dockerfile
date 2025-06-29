@@ -29,5 +29,6 @@ COPY --chown=retrade:retrade --from=build /build-node/build ./build
 COPY --chown=retrade:retrade --from=build /build-node/node_modules ./node_modules
 COPY --chown=retrade:retrade --from=build /build-node/package.json ./
 COPY --chown=retrade:retrade --from=build /build-node/prisma ./prisma
+COPY --chown=retrade:retrade --from=build /build-node/generated ./generated
 
 ENTRYPOINT ["sh", "-c", "yarn prisma migrate deploy && node ./build/index.js"]
