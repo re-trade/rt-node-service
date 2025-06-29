@@ -1,0 +1,9 @@
+services:
+  socket-services:
+    image: ${REGISTRY}/rt-socket-service
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      tags:
+        - ${REGISTRY}/rt-socket-service:latest
+        - ${REGISTRY}/rt-socket-service:${TAG}

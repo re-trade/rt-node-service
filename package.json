@@ -20,8 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "format:staged": "prettier --write",
-    "proto:gen": "protoc --proto_path=proto --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=src/grpc --ts_proto_opt=esModuleInterop,useOptionals=all,outputServices=grpc-js,outputClientImpl=grpc-js proto/*.proto",
-    "postinstall": "yarn proto:gen"
+    "proto:gen": "protoc --proto_path=proto --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=src/grpc --ts_proto_opt=esModuleInterop,useOptionals=all,outputServices=grpc-js,outputClientImpl=grpc-js proto/*.proto"
   },
   "packageManager": "yarn@1.22.19",
   "engines": {

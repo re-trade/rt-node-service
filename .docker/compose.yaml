@@ -1,0 +1,29 @@
+services:
+  main-service:
+    container_name: socket_service
+    image: ${REGISTRY}/rt-socket-service:latest
+    restart: always
+    networks:
+      - retrade-network
+    environment:
+      REDIS_URL: redis://retrade-redis:6379
+      DB_HOST: retrade-database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SCHEMA: chat
+      MAIN_SERVICE_HOST: main-service
+      MAIN_SERVICE_GRPC_PORT: 9080
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=retrade-network'
+      - 'traefik.constraint-label=retrade-service'
+      - 'traefik.http.routers.socket-service.rule=Host(`socket.${DOMAIN:-retrade.local}`)'
+      - 'traefik.http.routers.socket-service.entrypoints=web'
+      - 'traefik.http.services.socket-service.loadbalancer.server.port=3000'
+
+networks:
+  retrade-network:
+    name: retrade-network
+    external: true
