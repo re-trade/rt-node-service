@@ -1,0 +1,64 @@
+name: Deploy to Dev Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-images:
+    name: Build Prod Images
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io/${{ github.repository }}
+      TAG: prod
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        run: |
+          docker compose -f .docker/compose.build.yaml  build
+          docker compose -f .docker/compose.build.yaml  push
+        continue-on-error: true
+
+  deploy-dev:
+    runs-on: retrade-dev
+    needs: [build-images]
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io/${{ github.repository }}
+      DOMAIN: ${{ secrets.HOST_DOMAIN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull nightly images
+        run: docker compose -f .docker/compose.yaml -p retrade-service pull
+
+      - name: Clean Container, Image And Prepare For Deploy
+        run: docker compose -f .docker/compose.yaml -p retrade-service up -d
+        continue-on-error: true
+
+      - name: Clean Old Images
+        run: docker image prune -a -f
+        continue-on-error: true

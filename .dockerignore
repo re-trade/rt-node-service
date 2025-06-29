@@ -1,5 +1,8 @@
 build
 node_modules
+.idea
+.git
+generated
 .gitignore
 .dockerignore
 docker-compose.yaml

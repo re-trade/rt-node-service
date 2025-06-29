@@ -1,16 +1,33 @@
-FROM node:21 AS base
-WORKDIR /sea-node
-RUN useradd --create-home --shell /bin/bash vietnamsea
+FROM node:22-alpine AS base
+WORKDIR /rt-node
+RUN apk add --no-cache \
+    openssl \
+    libc6-compat \
+    bash \
+    curl
+RUN adduser -D -h /home/retrade retrade
 
-FROM node:21  AS build
+FROM node:22-alpine AS build
 WORKDIR /build-node
+
+RUN apk add --no-cache \
+    openssl \
+    libc6-compat \
+    bash \
+    curl
+
 COPY . .
-RUN yarn install --frozen-lockfile && yarn build
+RUN yarn install --frozen-lockfile
+RUN yarn prisma generate
+RUN yarn build
 
 FROM base AS final
-WORKDIR /sea-node
-USER vietnamsea
-COPY --chown=vietnamsea --from=build /build-node/build ./build
-COPY --chown=vietnamsea --from=build /build-node/node_modules ./node_modules
-COPY --chown=vietnamsea --from=build /build-node/package.json ./
-ENTRYPOINT [ "node", "./build/index.js" ]
+WORKDIR /rt-node
+USER retrade
+
+COPY --chown=retrade:retrade --from=build /build-node/build ./build
+COPY --chown=retrade:retrade --from=build /build-node/node_modules ./node_modules
+COPY --chown=retrade:retrade --from=build /build-node/package.json ./
+COPY --chown=retrade:retrade --from=build /build-node/prisma ./prisma
+
+ENTRYPOINT ["sh", "-c", "yarn prisma migrate deploy && node ./build/index.js"]
