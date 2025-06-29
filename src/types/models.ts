@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   role: string[];
+  senderRole: string;
   avatarUrl: string;
 }
 

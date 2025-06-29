@@ -31,8 +31,8 @@ const validators: TEnvValidatorKeyMap<TRetradeEnvironment> = {
   DB_USER: { required: true, default: 'postgres' },
   DB_PASSWORD: { required: true, default: '' },
   DB_SCHEMA: { required: true, default: 'public' },
-  MAIN_SERVICE_HOST: { required: true, default: 'localhost' },
-  MAIN_SERVICE_GRPC_PORT: { required: true, default: 9080 },
+  MAIN_SERVICE_HOST: { required: false, default: 'localhost' },
+  MAIN_SERVICE_GRPC_PORT: { required: false, default: 9080 },
 };
 
 const configLoader = new EnvLoader<TRetradeEnvironment>(validators, env => {

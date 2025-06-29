@@ -12,7 +12,6 @@ import {
 
 import { AuthService } from './auth.service.js';
 
-import { isTokenValid } from './jwt.service.js';
 import { JwtTokenType } from '../types/jwt.types.js';
 import { getCookieMap } from '../utils/cookie.util.js';
 
@@ -36,12 +35,6 @@ class ChatService {
   ) {
     try {
       const token = this.extractToken(socket, data);
-      const isValid = isTokenValid(token, JwtTokenType.ACCESS_TOKEN);
-
-      if (!isValid) {
-        return this.emitAuthError(socket, 'Invalid token');
-      }
-
       const user = await this.getUserProfile(token, data.senderType);
       if (!user) {
         return this.emitAuthError(socket, 'Invalid token');
@@ -158,12 +151,27 @@ class ChatService {
   }
 
   async getRoomMessages(roomId: string, limit = 50, offset = 0): Promise<Message[]> {
-    return prisma.message.findMany({
+    if (offset === 0) {
+      const cached = await redisClient.lRange(`room:${roomId}:messages`, 0, limit - 1);
+      if (cached.length > 0) {
+        return cached.map(raw => JSON.parse(raw));
+      }
+    }
+
+    const messages = await prisma.message.findMany({
       where: { roomId },
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
     });
+
+    if (offset === 0 && messages.length > 0) {
+      for (const msg of messages) {
+        await redisClient.lPush(`room:${roomId}:messages`, JSON.stringify(msg));
+      }
+      await redisClient.lTrim(`room:${roomId}:messages`, 0, 999);
+    }
+    return messages;
   }
 
   private async setUserData(user: OnlineUser) {
@@ -190,20 +198,30 @@ class ChatService {
   }
 
   private async getRoomById(roomId: string): Promise<Room | null> {
+    const cached = await redisClient.get(`room:${roomId}`);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as Room;
+        parsed.participants = await this.getRoomParticipants(roomId);
+        return parsed;
+      } catch {}
+    }
+
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      include: {
-        messages: true,
-      },
+      include: { messages: true },
     });
 
     if (!room) return null;
 
-    return {
+    const result = {
       ...room,
       participants: await this.getRoomParticipants(roomId),
       isPrivate: room.privated,
     };
+
+    await redisClient.set(`room:${roomId}`, JSON.stringify(result), { EX: 60 * 5 }); // 5 min TTL
+    return result;
   }
 
   private async getUserProfile(token: string, senderType: 'customer' | 'seller') {
@@ -218,6 +236,7 @@ class ChatService {
       id: senderType === 'customer' ? user.customerId : user.sellerId,
       username: user.username,
       role: user.roles,
+      senderRole: senderType,
       avatarUrl: user.avatarUrl,
       isOnline: true,
     };
@@ -239,14 +258,19 @@ class ChatService {
       data.sellerId < data.customerId
         ? [data.sellerId, data.customerId]
         : [data.customerId, data.sellerId];
+    const key = `room:between:${cid}:${sid}`;
+
+    const cachedRoomId = await redisClient.get(key);
+    if (cachedRoomId) {
+      return (await this.getRoomById(cachedRoomId)) as Room;
+    }
+
     const existingRoom = await prisma.room.findFirst({
-      where: {
-        customerId: cid,
-        sellerId: sid,
-      },
+      where: { customerId: cid, sellerId: sid },
     });
 
     if (existingRoom) {
+      await redisClient.set(key, existingRoom.id, { EX: 60 * 10 });
       return {
         ...existingRoom,
         participants: [],
@@ -255,16 +279,11 @@ class ChatService {
     }
 
     const room = await prisma.room.create({
-      data: {
-        sellerId: sid,
-        customerId: cid,
-        privated: true,
-      },
-      include: {
-        messages: true,
-      },
+      data: { sellerId: sid, customerId: cid, privated: true },
+      include: { messages: true },
     });
 
+    await redisClient.set(key, room.id, { EX: 60 * 10 });
     return {
       ...room,
       participants: [],
