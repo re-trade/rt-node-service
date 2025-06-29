@@ -7,27 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  username  String    @unique
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  messages  Message[] @relation("SentMessages")
-
-  @@map("users")
-}
-
 model Room {
-  id            String         @id @default(uuid())
-  name          String
-  isPrivate     Boolean       @default(false)
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id         String    @id @default(uuid())
+  privated  Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  sellerId   String    @map("seller_id")
+  customerId String    @map("customer_id")
   messages      Message[]
   videoSessions VideoSession[]
-
+  @@unique([sellerId, customerId])
   @@map("rooms")
 }
 
@@ -35,18 +24,15 @@ model Message {
   id        String   @id @default(uuid())
   content   String
   roomId    String
-  room      Room     @relation(fields: [roomId], references: [id])
   senderId  String   @map("sender_id")
-  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
   createdAt DateTime @default(now()) @map("created_at")
-
+  room      Room     @relation(fields: [roomId], references: [id])
   @@map("messages")
 }
 
 model VideoSession {
   id           String    @id @default(uuid())
   roomId       String
-  room         Room      @relation(fields: [roomId], references: [id])
   startTime    DateTime  @map("start_time")
   endTime      DateTime? @map("end_time")
   participants String[]
@@ -56,17 +42,18 @@ model VideoSession {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
+  room         Room      @relation(fields: [roomId], references: [id])
   @@map("video_sessions")
 }
 
 model Recording {
-  id           String    @id @default(uuid())
-  callSessionId String   @map("call_session_id")
-  filePath     String    @map("file_path")
-  startTime    DateTime  @map("start_time")
-  endTime      DateTime? @map("end_time")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(uuid())
+  callSessionId String    @map("call_session_id")
+  filePath      String    @map("file_path")
+  startTime     DateTime  @map("start_time")
+  endTime       DateTime? @map("end_time")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@map("recordings")
 }

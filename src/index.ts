@@ -13,7 +13,6 @@ const CORS_ORIGIN = configLoader.config.CORS_ORIGIN;
 
 const app = express();
 const server = http.createServer(app);
-
 app.use(
   cors({
     origin: CORS_ORIGIN,
@@ -74,5 +73,3 @@ server.listen(PORT, () => {
   console.log('');
   console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
 });
-
-export default app;

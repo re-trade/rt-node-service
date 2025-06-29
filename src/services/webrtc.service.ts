@@ -10,7 +10,7 @@ import type {
   PeerConnection,
   WebRTCClientToServerEvents,
   WebRTCRoom,
-  WebRTCServerToClientEvents
+  WebRTCServerToClientEvents,
 } from '../types/webrtc.types.js';
 
 let io: SocketIOServer<WebRTCClientToServerEvents, WebRTCServerToClientEvents>;

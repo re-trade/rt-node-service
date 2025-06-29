@@ -1,25 +1,11 @@
 import {
-  User,
   Message as ModelMessage,
   Room as ModelRoom,
+  User,
   VideoSession as ModelVideoSession,
-  Recording as ModelRecording,
 } from './models.js';
 
 export type { WebRTCClientToServerEvents, WebRTCServerToClientEvents } from './webrtc.types.js';
-
-export interface ApiResponse<T = any> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  count?: number;
-  error?: string;
-  pagination?: {
-    limit: number;
-    offset: number;
-    hasMore?: boolean;
-  };
-}
 
 export type { User } from './models.js';
 
@@ -37,24 +23,6 @@ export interface Room extends ModelRoom {
 
 export type VideoSession = ModelVideoSession;
 
-export interface VideoRoom {
-  id: string;
-  participants: OnlineUser[];
-  maxParticipants: number;
-  isActive: boolean;
-  createdAt: Date;
-}
-
-export interface VideoCallSignal {
-  type: 'offer' | 'answer' | 'ice-candidate';
-  data: any;
-  from: string | null;
-  to: string;
-  roomId: string;
-}
-
-export type Recording = ModelRecording;
-
 export interface ServerToClientEvents {
   message: (message: Message) => void;
   userJoined: (user: OnlineUser) => void;
@@ -70,7 +38,6 @@ export interface ServerToClientEvents {
     readBy: string[];
     roomId: string;
   }) => void;
-  // WebRTC Events
   signal: (data: {
     from: string;
     type: 'offer' | 'answer' | 'ice-candidate' | 'signal';
@@ -86,7 +53,7 @@ export interface ServerToClientEvents {
   'new-participant': (data: { socketId: string; userId: string }) => void;
 
   incomingCall: (data: { callerId: string; callerName: string; roomId: string }) => void;
-  callAccepted: (data: { accepterId: string; roomId: string }) => void;
+  callAccepted: (data: { acceptedId: string; roomId: string }) => void;
   callRejected: (data: { rejecterId: string; reason: string | null }) => void;
   callEnded: (data: { enderId: string; roomId: string; duration: number }) => void;
 
@@ -94,7 +61,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  authenticate: (userData: { username: string; email: string; name: string }) => void;
+  authenticate: (userData: { token?: string; senderType: 'customer' | 'seller' }) => void;
 
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;
@@ -102,8 +69,6 @@ export interface ClientToServerEvents {
   createRoom: (data: { name: string }) => void;
   typing: (data: { roomId: string; isTyping: boolean }) => void;
   markMessageRead: (data: { messageId: string; roomId: string }) => void;
-
-  // WebRTC Events
   'join-call': (data: { roomId: string; userId: string }) => void;
   'leave-call': (data: { roomId: string; userId: string }) => void;
   signal: (data: {
@@ -118,7 +83,6 @@ export interface ClientToServerEvents {
   'stop-recording': (data: { callSessionId: string }) => void;
   'recording-chunk': (data: { callSessionId: string; chunk: string; timestamp: Date }) => void;
 
-  // Legacy video call events - to be deprecated
   initiateCall: (data: { recipientId: string; roomId: string }) => void;
   acceptCall: (data: { callerId: string; roomId: string }) => void;
   rejectCall: (data: { callerId: string; reason?: string }) => void;

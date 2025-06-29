@@ -1,6 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import configLoader from './config-loader.js';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: configLoader.config.DATABASE_URL,
+    },
+  },
+});
 prisma
   .$connect()
   .then(() => {
