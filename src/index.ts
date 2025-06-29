@@ -1,4 +1,4 @@
-import configLoader from 'configs/config-loader.js';
+import configLoader from './configs/config-loader.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
