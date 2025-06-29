@@ -18,7 +18,7 @@ type TRetradeEnvironment = {
 const validators: TEnvValidatorKeyMap<TRetradeEnvironment> = {
   NODE_ENV: { required: true, default: 'development' },
   PORT: { required: true, default: 3000 },
-  CORS_ORIGIN: { required: true, default: 'http://localhost:3000' },
+  CORS_ORIGIN: { required: false, default: 'http://localhost:3000' },
   REDIS_URL: { required: false, default: 'redis://localhost:6379' },
   DATABASE_URL: { required: true, default: 'postgresql://localhost:5432/retrade' },
   DB_HOST: { required: true, default: 'localhost' },

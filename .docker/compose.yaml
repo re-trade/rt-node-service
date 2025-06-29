@@ -8,6 +8,7 @@ services:
     environment:
       REDIS_URL: redis://retrade-redis:6379
       NODE_ENV: production
+      PORT: 3000
       DB_HOST: retrade-database
       DB_PORT: 5432
       DB_NAME: ${DB_NAME}
