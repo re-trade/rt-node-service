@@ -26,6 +26,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set TAG environment variable
+        run: echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Build and push image
         run: |
           docker compose -f .docker/compose.build.yaml  build
@@ -51,7 +53,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Pull nightly images
         run: docker compose -f .docker/compose.yaml -p retrade-service pull
 

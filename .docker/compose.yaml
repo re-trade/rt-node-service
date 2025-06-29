@@ -1,5 +1,5 @@
 services:
-  main-service:
+  socket-service:
     container_name: socket_service
     image: ${REGISTRY}/rt-socket-service:latest
     restart: always
