@@ -55,9 +55,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull nightly images
         run: docker compose -f .docker/compose.yaml -p retrade-service pull
-
+      - name: Infisical Login
+        run: |
+          echo "INFISICAL_TOKEN=$(infisical login --domain=${{secrets.INFISICAL_URL}} --method=universal-auth --client-id=${{secrets.INFISICAL_CLIENT_ID}} --client-secret=${{secrets.INFISICAL_CLIENT_SECRET}} --silent --plain)" >> $GITHUB_ENV
       - name: Clean Container, Image And Prepare For Deploy
-        run: docker compose -f .docker/compose.yaml -p retrade-service up -d
+        run: infisical run --env=prod --token=${{env.INFISICAL_TOKEN}} --domain=${{secrets.INFISICAL_URL}} --projectId=${{secrets.INFISICAL_PROJECT_ID}} --path=/ --watch -- docker compose -f .docker/compose.yaml -p retrade-service up -d
         continue-on-error: true
 
       - name: Clean Old Images
