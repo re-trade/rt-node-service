@@ -7,3 +7,7 @@ services:
       tags:
         - ${REGISTRY}/rt-socket-service:latest
         - ${REGISTRY}/rt-socket-service:${TAG}
+    profiles:
+      - backend
+      - socket
+      - build
