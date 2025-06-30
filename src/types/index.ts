@@ -25,12 +25,12 @@ export type VideoSession = ModelVideoSession;
 
 export interface ServerToClientEvents {
   message: (message: Message) => void;
-  userJoined: (user: OnlineUser) => void;
-  userLeft: (user: OnlineUser) => void;
+  rooms: (rooms: Room[]) => void;
   roomCreated: (room: Room) => void;
   roomJoined: (room: Room) => void;
   roomLeft: (roomId: string) => void;
   onlineUsers: (users: OnlineUser[]) => void;
+
   typing: (data: { userId: string; username: string; isTyping: boolean }) => void;
   messageRead: (data: {
     messageId: string;
@@ -38,19 +38,13 @@ export interface ServerToClientEvents {
     readBy: string[];
     roomId: string;
   }) => void;
+
   signal: (data: {
     from: string;
-    type: 'offer' | 'answer' | 'ice-candidate' | 'signal';
+    type: 'signal' | 'offer' | 'answer' | 'ice-candidate';
     data: any;
     roomId: string;
   }) => void;
-  'user-joined-call': (data: { userId: string; roomId: string }) => void;
-  'user-left-call': (data: { userId: string; roomId: string }) => void;
-  'call-ended': (data: { roomId: string }) => void;
-  'room-full': (data: { roomId: string }) => void;
-  'webrtc-error': (error: { message: string; code?: string }) => void;
-  'existing-participants': (data: { participants: { socketId: string; userId: string }[] }) => void;
-  'new-participant': (data: { socketId: string; userId: string }) => void;
 
   incomingCall: (data: { callerId: string; callerName: string; roomId: string }) => void;
   callAccepted: (data: { acceptedId: string; roomId: string }) => void;
@@ -60,34 +54,31 @@ export interface ServerToClientEvents {
   error: (error: { message: string; code: string | null }) => void;
 }
 
+
 export interface ClientToServerEvents {
   authenticate: (userData: { token?: string; senderType: 'customer' | 'seller' }) => void;
-
+  getUserRooms: () => void;
   sendMessage: (data: { content: string; roomId: string }) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   createRoom: (data: { name: string }) => void;
+
   typing: (data: { roomId: string; isTyping: boolean }) => void;
   markMessageRead: (data: { messageId: string; roomId: string }) => void;
-  'join-call': (data: { roomId: string; userId: string }) => void;
-  'leave-call': (data: { roomId: string; userId: string }) => void;
+
   signal: (data: {
     to: string;
-    type: 'offer' | 'answer' | 'ice-candidate' | 'signal';
+    type: 'offer' | 'answer' | 'ice-candidate';
     data: any;
     roomId: string;
   }) => void;
-  'start-call': (data: { roomId: string; type: 'audio' | 'video' }) => void;
-  'end-call': (data: { roomId: string }) => void;
-  'start-recording': (data: { callSessionId: string }) => void;
-  'stop-recording': (data: { callSessionId: string }) => void;
-  'recording-chunk': (data: { callSessionId: string; chunk: string; timestamp: Date }) => void;
 
   initiateCall: (data: { recipientId: string; roomId: string }) => void;
   acceptCall: (data: { callerId: string; roomId: string }) => void;
   rejectCall: (data: { callerId: string; reason?: string }) => void;
   endCall: (data: { roomId: string }) => void;
 }
+
 
 export interface InterServerEvents {
   ping: () => void;
