@@ -80,6 +80,7 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
     cors: {
       origin: corsOrigin,
       methods: ['GET', 'POST', 'OPTIONS'],
+      credentials: true,
     },
   });
 
