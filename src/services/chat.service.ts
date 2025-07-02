@@ -1,17 +1,17 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import { prisma } from '../configs/prisma.js';
 import { redisClient } from '../configs/redis.js';
-import { Message, Room } from '../types/index.js';
 import {
   ClientToServerEvents,
   InterServerEvents,
+  Message,
   OnlineUser,
+  Room,
   ServerToClientEvents,
   SocketData,
-} from '../types/socket.types.js';
+} from '../types/index.js';
 
 import { AuthService } from './auth.service.js';
-
 import { JwtTokenType } from '../types/jwt.types.js';
 import { getCookieMap } from '../utils/cookie.util.js';
 
@@ -30,23 +30,20 @@ class ChatService {
   }
 
   async handleAuthenticate(
-    socket: any,
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
     data: { token?: string; senderType: 'customer' | 'seller' }
   ) {
     try {
       const token = this.extractToken(socket, data);
       const user = await this.getUserProfile(token, data.senderType);
-      if (!user) {
-        return this.emitAuthError(socket, 'Invalid token');
-      }
+      if (!user) return this.emitAuthError(socket, 'Invalid token');
 
       const onlineUser = this.toOnlineUser(user, data.senderType);
-
       await this.setUserData(onlineUser);
+
       socket.data.user = onlineUser;
       socket.data.rooms = new Set();
 
-      socket.broadcast.emit('userJoined', onlineUser);
       const users = await this.getOnlineUsers();
       socket.emit('onlineUsers', users);
     } catch (error) {
@@ -55,7 +52,10 @@ class ChatService {
     }
   }
 
-  async handleSendMessage(socket: any, data: { content: string; roomId: string }) {
+  async handleSendMessage(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { content: string; roomId: string }
+  ) {
     if (!socket.data.user || !socket.data.rooms.has(data.roomId)) {
       socket.emit('error', { message: 'Unauthorized or not in room', code: 'AUTH_ERROR' });
       return;
@@ -66,29 +66,41 @@ class ChatService {
     this.io.to(data.roomId).emit('message', message);
   }
 
-  async handleJoinRoom(socket: any, roomId: string) {
+  async handleJoinRoom(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    roomId: string
+  ) {
     if (!socket.data.user) {
-      socket.emit('error', { message: 'User not authenticated' });
+      socket.emit('error', { message: 'User not authenticated', code: 'AUTH_ERROR' });
       return;
     }
 
     const room = await this.getRoomById(roomId);
     if (!room) {
-      socket.emit('error', { message: 'Room not found' });
+      socket.emit('error', { message: 'Room not found', code: 'ROOM_NOT_FOUND' });
       return;
     }
 
+    for (const r of socket.rooms) {
+      if (r !== socket.id) socket.leave(r);
+    }
+
+    socket.join(roomId);
     await this.addUserToRoom(socket, room);
+    socket.emit('roomJoined', room);
+
     const recentMessages = await this.getRoomMessages(roomId);
-    recentMessages.forEach(message => socket.emit('message', message));
+    for (const msg of recentMessages) {
+      socket.emit('message', msg);
+    }
   }
 
   async handleCreateRoom(
-    socket: any,
-    data: { name: string; customerId: string; sellerId: string }
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { customerId: string; sellerId: string }
   ) {
     if (!socket.data.user) {
-      socket.emit('error', { message: 'User not authenticated' });
+      socket.emit('error', { message: 'User not authenticated', code: 'AUTH_ERROR' });
       return;
     }
 
@@ -97,15 +109,20 @@ class ChatService {
     socket.emit('roomCreated', room);
   }
 
-  async handleLeaveRoom(socket: any, roomId: string) {
+  async handleLeaveRoom(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    roomId: string
+  ) {
     if (!socket.data.user) return;
 
     await this.removeUserFromRoom(socket, roomId);
-    socket.to(roomId).emit('userLeft', socket.data.user);
     socket.emit('roomLeft', roomId);
   }
 
-  handleTyping(socket: any, data: { roomId: string; isTyping: boolean }) {
+  handleTyping(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { roomId: string; isTyping: boolean }
+  ) {
     if (!socket.data.user || !socket.data.rooms.has(data.roomId)) return;
 
     socket.to(data.roomId).emit('typing', {
@@ -115,10 +132,52 @@ class ChatService {
     });
   }
 
-  async handleDisconnect(socket: any) {
+  async handleDisconnect(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
+  ) {
     if (!socket.data.user) return;
 
-    await this.handleUserDisconnect(socket);
+    await redisClient.sRem('onlineUsers', socket.data.user.id);
+    for (const roomId of socket.data.rooms) {
+      await this.removeUserFromRoom(socket, roomId);
+    }
+  }
+
+  async getRooms(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
+  ): Promise<void> {
+    if (!socket.data.user) {
+      socket.emit('error', { message: 'User not authenticated', code: 'AUTH_ERROR' });
+      return;
+    }
+
+    try {
+      const rooms = await prisma.room.findMany({
+        where: {
+          OR: [{ customerId: socket.data.user.id }, { sellerId: socket.data.user.id }],
+        },
+        include: { messages: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      const result = await Promise.all(
+        rooms.map(async room => ({
+          id: room.id,
+          createdAt: room.createdAt,
+          updatedAt: room.updatedAt,
+          isPrivate: room.privated,
+          sellerId: room.sellerId,
+          customerId: room.customerId,
+          messages: room.messages,
+          participants: await this.getRoomParticipants(room.id),
+        }))
+      );
+
+      socket.emit('rooms', result);
+    } catch (err) {
+      console.error('Failed to get rooms:', err);
+      socket.emit('error', { message: 'Failed to get rooms', code: 'DB_ERROR' });
+    }
   }
 
   async getOnlineUsers(): Promise<OnlineUser[]> {
@@ -126,36 +185,10 @@ class ChatService {
     return this.getOnlineUsersById(userIds);
   }
 
-  async getRooms(): Promise<Room[]> {
-    const rooms = await prisma.room.findMany({
-      include: {
-        messages: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-    if (rooms.length === 0) return [];
-    return Promise.all(
-      rooms.map(async room => ({
-        id: room.id,
-        createdAt: room.createdAt,
-        isPrivate: room.privated,
-        updatedAt: room.updatedAt,
-        sellerId: room.sellerId,
-        customerId: room.customerId,
-        participants: await this.getRoomParticipants(room.id),
-        messages: room.messages,
-      }))
-    );
-  }
-
   async getRoomMessages(roomId: string, limit = 50, offset = 0): Promise<Message[]> {
     if (offset === 0) {
       const cached = await redisClient.lRange(`room:${roomId}:messages`, 0, limit - 1);
-      if (cached.length > 0) {
-        return cached.map(raw => JSON.parse(raw));
-      }
+      if (cached.length > 0) return cached.map(raw => JSON.parse(raw));
     }
 
     const messages = await prisma.message.findMany({
@@ -174,6 +207,30 @@ class ChatService {
     return messages;
   }
 
+  async handleMarkMessageRead(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { messageId: string; roomId: string }
+  ) {
+    if (!socket.data.user || !socket.data.rooms.has(data.roomId)) {
+      socket.emit('error', { message: 'Unauthorized or not in room', code: 'AUTH_ERROR' });
+      return;
+    }
+
+    try {
+      await redisClient.sAdd(`message:${data.messageId}:read_by`, socket.data.user.id);
+      const readByUsers = await redisClient.sMembers(`message:${data.messageId}:read_by`);
+      this.io.to(data.roomId).emit('messageRead', {
+        messageId: data.messageId,
+        userId: socket.data.user.id,
+        readBy: readByUsers,
+        roomId: data.roomId,
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      socket.emit('error', { message: 'Failed to mark message as read', code: 'DB_ERROR' });
+    }
+  }
+
   private async setUserData(user: OnlineUser) {
     await redisClient.set(`user:${user.id}`, JSON.stringify(user));
     await redisClient.sAdd('onlineUsers', user.id);
@@ -184,11 +241,7 @@ class ChatService {
     data: { content: string; roomId: string }
   ): Promise<Message> {
     return prisma.message.create({
-      data: {
-        content: data.content,
-        roomId: data.roomId,
-        senderId: senderId,
-      },
+      data: { content: data.content, roomId: data.roomId, senderId },
     });
   }
 
@@ -211,7 +264,6 @@ class ChatService {
       where: { id: roomId },
       include: { messages: true },
     });
-
     if (!room) return null;
 
     const result = {
@@ -220,15 +272,14 @@ class ChatService {
       isPrivate: room.privated,
     };
 
-    await redisClient.set(`room:${roomId}`, JSON.stringify(result), { EX: 60 * 5 }); // 5 min TTL
+    await redisClient.set(`room:${roomId}`, JSON.stringify(result), { EX: 60 * 5 });
     return result;
   }
 
   private async getUserProfile(token: string, senderType: 'customer' | 'seller') {
-    if (senderType === 'customer') {
-      return await this.authService.getCustomerProfile(token, JwtTokenType.ACCESS_TOKEN);
-    }
-    return await this.authService.getSellerProfile(token, JwtTokenType.ACCESS_TOKEN);
+    return senderType === 'customer'
+      ? this.authService.getCustomerProfile(token, JwtTokenType.ACCESS_TOKEN)
+      : this.authService.getSellerProfile(token, JwtTokenType.ACCESS_TOKEN);
   }
 
   private toOnlineUser(user: any, senderType: 'customer' | 'seller'): OnlineUser {
@@ -242,14 +293,19 @@ class ChatService {
     };
   }
 
-  private extractToken(socket: any, data: { token?: string }): string {
+  private extractToken(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { token?: string }
+  ): string {
     if (data.token) return data.token;
-
     const cookies = getCookieMap(socket.request);
     return cookies?.[JwtTokenType.ACCESS_TOKEN] ?? '';
   }
 
-  private emitAuthError(socket: any, message: string) {
+  private emitAuthError(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    message: string
+  ) {
     socket.emit('error', { message, code: 'INVALID_TOKEN' });
   }
 
@@ -261,21 +317,12 @@ class ChatService {
     const key = `room:between:${cid}:${sid}`;
 
     const cachedRoomId = await redisClient.get(key);
-    if (cachedRoomId) {
-      return (await this.getRoomById(cachedRoomId)) as Room;
-    }
+    if (cachedRoomId) return this.getRoomById(cachedRoomId) as Promise<Room>;
 
-    const existingRoom = await prisma.room.findFirst({
-      where: { customerId: cid, sellerId: sid },
-    });
-
+    const existingRoom = await prisma.room.findFirst({ where: { customerId: cid, sellerId: sid } });
     if (existingRoom) {
       await redisClient.set(key, existingRoom.id, { EX: 60 * 10 });
-      return {
-        ...existingRoom,
-        participants: [],
-        isPrivate: existingRoom.privated,
-      };
+      return { ...existingRoom, participants: [], isPrivate: existingRoom.privated };
     }
 
     const room = await prisma.room.create({
@@ -284,36 +331,34 @@ class ChatService {
     });
 
     await redisClient.set(key, room.id, { EX: 60 * 10 });
-    return {
-      ...room,
-      participants: [],
-      isPrivate: room.privated,
-    };
+    return { ...room, participants: [], isPrivate: room.privated };
   }
 
-  private async addUserToRoom(socket: any, room: Room) {
+  private async addUserToRoom(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    room: Room
+  ) {
+    if (!socket.data.user?.id) {
+      socket.emit('error', { message: 'User not authenticated', code: 'AUTH_ERROR' });
+      return;
+    }
     socket.join(room.id);
     socket.data.rooms.add(room.id);
     await redisClient.sAdd(`room:${room.id}:participants`, socket.data.user.id);
     socket.emit('roomJoined', room);
-    socket.to(room.id).emit('userJoined', socket.data.user);
   }
 
-  private async removeUserFromRoom(socket: any, roomId: string) {
+  private async removeUserFromRoom(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    roomId: string
+  ) {
+    if (!socket.data.user?.id) {
+      socket.emit('error', { message: 'User not authenticated', code: 'AUTH_ERROR' });
+      return;
+    }
     socket.leave(roomId);
     socket.data.rooms.delete(roomId);
     await redisClient.sRem(`room:${roomId}:participants`, socket.data.user.id);
-  }
-
-  private async handleUserDisconnect(socket: any) {
-    await redisClient.sRem('onlineUsers', socket.data.user.id);
-
-    for (const roomId of socket.data.rooms) {
-      await this.removeUserFromRoom(socket, roomId);
-      socket.to(roomId).emit('userLeft', socket.data.user);
-    }
-
-    socket.broadcast.emit('userLeft', socket.data.user);
   }
 
   private async getRoomParticipants(roomId: string): Promise<OnlineUser[]> {
@@ -327,9 +372,8 @@ class ChatService {
       pipeline.get(`user:${userId}`);
     }
     const rawResults = await pipeline.exec();
-    if (!Array.isArray(rawResults)) {
-      return [];
-    }
+    if (!Array.isArray(rawResults)) return [];
+
     const users: OnlineUser[] = [];
     for (const result of rawResults) {
       const json = result as unknown as string | null;
@@ -340,27 +384,6 @@ class ChatService {
       } catch {}
     }
     return users;
-  }
-
-  async handleMarkMessageRead(socket: any, data: { messageId: string; roomId: string }) {
-    if (!socket.data.user || !socket.data.rooms.has(data.roomId)) {
-      socket.emit('error', { message: 'Unauthorized or not in room', code: 'AUTH_ERROR' });
-      return;
-    }
-
-    try {
-      await redisClient.sAdd(`message:${data.messageId}:read_by`, socket.data.user.id);
-      const readByUsers = await redisClient.sMembers(`message:${data.messageId}:read_by`);
-      this.io.to(data.roomId).emit('messageRead', {
-        messageId: data.messageId,
-        userId: socket.data.user.id,
-        readBy: readByUsers,
-        roomId: data.roomId,
-      });
-    } catch (error) {
-      console.error('Error marking message as read:', error);
-      socket.emit('error', { message: 'Failed to mark message as read', code: 'DB_ERROR' });
-    }
   }
 }
 

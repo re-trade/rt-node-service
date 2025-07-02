@@ -28,11 +28,12 @@ const tokenGrpc = new GrpcTokenServiceClient(
 
 const authService = new AuthService(tokenGrpc);
 
-const configChatIo = (
+export const configChatIo = (
   socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
   chatService: ChatService
 ) => {
   socket.on('authenticate', data => chatService.handleAuthenticate(socket, data));
+  socket.on('getUserRooms', () => chatService.getRooms(socket));
   socket.on('joinRoom', roomId => chatService.handleJoinRoom(socket, roomId));
   socket.on('leaveRoom', roomId => chatService.handleLeaveRoom(socket, roomId));
   socket.on('sendMessage', data => chatService.handleSendMessage(socket, data));
@@ -41,13 +42,14 @@ const configChatIo = (
   socket.on('disconnect', () => chatService.handleDisconnect(socket));
 };
 
-const configVideoIo = (
+export const configVideoIo = (
   socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
   videoService: VideoService,
   webRTCService: ReturnType<typeof createWebRTCService>
 ) => {
   socket.on('initiateCall', data => videoService.handleInitiateCall(socket, data));
   socket.on('acceptCall', data => videoService.handleAcceptCall(socket, data));
+
   socket.on('rejectCall', async data => {
     const roomId = videoService.getRoomIdForUser(data.callerId);
     if (roomId) {
@@ -57,19 +59,15 @@ const configVideoIo = (
     }
   });
   socket.on('endCall', data => videoService.handleEndCall(socket, data));
-
-  socket.on('join-call', data => {
-    const room = webRTCService.getActiveRooms().find(r => r.id === data.roomId);
-    if (room) webRTCService.createRoom(2);
-    socket.join(data.roomId);
-    socket.to(data.roomId).emit('user-joined-call', { userId: data.userId, roomId: data.roomId });
-  });
-  socket.on('leave-call', data => {
-    socket.leave(data.roomId);
-    socket.to(data.roomId).emit('user-left-call', { userId: data.userId, roomId: data.roomId });
+  socket.on('signal', (data: SignalData) => {
+    socket.to(data.to).emit('signal', {
+      from: socket.id,
+      type: data.type,
+      data: data.data,
+      roomId: data.roomId,
+    });
   });
 };
-
 export function createSocketService(httpServer: HttpServer, corsOrigin: string) {
   const io = new SocketIOServer<
     ClientToServerEvents,
@@ -97,15 +95,6 @@ export function createSocketService(httpServer: HttpServer, corsOrigin: string) 
 
     configChatIo(socket, chatService);
     configVideoIo(socket, videoService, webRTCService);
-
-    socket.on('signal', (data: SignalData) => {
-      socket.to(data.to).emit('signal', {
-        from: socket.id,
-        type: data.type,
-        data: data.data,
-        roomId: data.roomId,
-      });
-    });
   });
 
   return {
