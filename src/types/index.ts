@@ -54,7 +54,6 @@ export interface ServerToClientEvents {
   error: (error: { message: string; code: string | null }) => void;
 }
 
-
 export interface ClientToServerEvents {
   authenticate: (userData: { token?: string; senderType: 'customer' | 'seller' }) => void;
   getUserRooms: () => void;
@@ -78,7 +77,6 @@ export interface ClientToServerEvents {
   rejectCall: (data: { callerId: string; reason?: string }) => void;
   endCall: (data: { roomId: string }) => void;
 }
-
 
 export interface InterServerEvents {
   ping: () => void;
