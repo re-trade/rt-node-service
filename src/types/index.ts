@@ -1,35 +1,15 @@
-import {
-  Message as ModelMessage,
-  Room as ModelRoom,
-  User,
-  VideoSession as ModelVideoSession,
-} from './models.js';
+import { ChattingUser, Message, Room, VideoSession } from './chat.type.js';
 
 export type { WebRTCClientToServerEvents, WebRTCServerToClientEvents } from './webrtc.types.js';
 
-export type { User } from './models.js';
-
-export interface OnlineUser extends User {
-  isOnline: boolean;
-}
-
-export interface Message extends ModelMessage {
-  sender?: OnlineUser;
-}
-
-export interface Room extends ModelRoom {
-  participants: OnlineUser[];
-}
-
-export type VideoSession = ModelVideoSession;
-
 export interface ServerToClientEvents {
   message: (message: Message) => void;
+  authSuccess: () => void;
   rooms: (rooms: Room[]) => void;
   roomCreated: (room: Room) => void;
   roomJoined: (room: Room) => void;
   roomLeft: (roomId: string) => void;
-  onlineUsers: (users: OnlineUser[]) => void;
+  onlineUsers: (users: ChattingUser[]) => void;
 
   typing: (data: { userId: string; username: string; isTyping: boolean }) => void;
   messageRead: (data: {
@@ -56,13 +36,13 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   authenticate: (userData: { token?: string; senderType: 'customer' | 'seller' }) => void;
-  getUserRooms: () => void;
-  sendMessage: (data: { content: string; roomId: string }) => void;
-  joinRoom: (roomId: string) => void;
-  leaveRoom: (roomId: string) => void;
+  getRooms: () => void;
+  sendMessage: (data: { content: string; receiverId: string }) => void;
+  joinRoom: (receiverId: string) => void;
+  leaveRoom: (receiverId: string) => void;
   createRoom: (data: { name: string }) => void;
 
-  typing: (data: { roomId: string; isTyping: boolean }) => void;
+  typing: (data: { receiverId: string; isTyping: boolean }) => void;
   markMessageRead: (data: { messageId: string; roomId: string }) => void;
 
   signal: (data: {
@@ -83,7 +63,7 @@ export interface InterServerEvents {
 }
 
 export interface SocketData {
-  user?: OnlineUser;
+  user?: ChattingUser;
   rooms: Set<string>;
   activeCall?: VideoSession;
 }

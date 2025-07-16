@@ -33,7 +33,7 @@ export const configChatIo = (
   chatService: ChatService
 ) => {
   socket.on('authenticate', data => chatService.handleAuthenticate(socket, data));
-  socket.on('getUserRooms', () => chatService.getRooms(socket));
+  socket.on('getRooms', () => chatService.getRooms(socket));
   socket.on('joinRoom', roomId => chatService.handleJoinRoom(socket, roomId));
   socket.on('leaveRoom', roomId => chatService.handleLeaveRoom(socket, roomId));
   socket.on('sendMessage', data => chatService.handleSendMessage(socket, data));
