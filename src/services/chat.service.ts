@@ -111,8 +111,9 @@ class ChatService {
       content: data.content,
       roomId: room.id,
     });
-
+    message.sender = user;
     await this.cacheMessage(room.id, message);
+
     this.io.to(room.id).emit('message', message);
   }
 
@@ -193,26 +194,45 @@ class ChatService {
   }
 
   async getRoomMessages(roomId: string, limit = 50, offset = 0): Promise<Message[]> {
+    let messages: Message[];
     if (offset === 0) {
       const cached = await redisClient.lRange(`room:${roomId}:messages`, 0, limit - 1);
-      if (cached.length > 0) return cached.map(raw => JSON.parse(raw));
-    }
-
-    const messages = await prisma.message.findMany({
-      where: { roomId },
-      orderBy: { createdAt: 'desc' },
-      skip: offset,
-      take: limit,
-    });
-
-    if (offset === 0 && messages.length > 0) {
-      for (const msg of messages) {
-        await redisClient.lPush(`room:${roomId}:messages`, JSON.stringify(msg));
+      if (cached.length > 0) {
+        messages = cached.map(raw => JSON.parse(raw));
+      } else {
+        messages = await prisma.message.findMany({
+          where: { roomId },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+        });
+        for (const msg of messages) {
+          await redisClient.lPush(`room:${roomId}:messages`, JSON.stringify(msg));
+        }
+        await redisClient.lTrim(`room:${roomId}:messages`, 0, 999);
       }
-      await redisClient.lTrim(`room:${roomId}:messages`, 0, 999);
+    } else {
+      messages = await prisma.message.findMany({
+        where: { roomId },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      });
     }
-
-    return messages;
+    const result: Message[] = [];
+    for (const msg of messages) {
+      let profile = await this.getOrFetchUser(msg.senderId, 'customer');
+      let chattingUser: ChattingUser | undefined = undefined;
+      if (profile) {
+        chattingUser = this.toChattingUser(profile, 'customer');
+      } else {
+        profile = await this.getOrFetchUser(msg.senderId, 'seller');
+        if (profile) {
+          chattingUser = this.toChattingUser(profile, 'seller');
+        }
+      }
+      result.push({ ...msg, sender: chattingUser });
+    }
+    return result;
   }
 
   private async getRoomById(roomId: string): Promise<Room | null> {
