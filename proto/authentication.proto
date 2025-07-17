@@ -14,6 +14,10 @@ message TokenRequest {
   TokenType type = 2;
 }
 
+message AccountIdRequest {
+  string id = 1;
+}
+
 message UserTokenInfo {
   string account_id = 1;
   repeated string roles = 2;
@@ -72,4 +76,6 @@ service GrpcTokenService {
   rpc VerifyToken (TokenRequest) returns (VerifyTokenResponse);
   rpc GetCustomerProfile (TokenRequest) returns (GetCustomerProfileResponse);
   rpc GetSellerProfile (TokenRequest) returns (GetSellerProfileResponse);
+  rpc GetCustomerProfileById (AccountIdRequest) returns (GetCustomerProfileResponse);
+  rpc GetSellerProfileById (AccountIdRequest) returns (GetSellerProfileResponse);
 }

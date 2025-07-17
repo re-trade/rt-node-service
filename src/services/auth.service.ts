@@ -1,4 +1,5 @@
 import {
+  AccountIdRequest,
   CustomerDetailInfo,
   GetCustomerProfileResponse,
   GetSellerProfileResponse,
@@ -24,7 +25,7 @@ type UserTokenResponse = BaseUserInfo & {
   type: JwtTokenType;
 };
 
-type CustomerProfileResponse = BaseUserInfo & {
+export type CustomerProfileResponse = BaseUserInfo & {
   email: string;
   firstName: string;
   lastName: string;
@@ -45,11 +46,16 @@ export class AuthService {
   private readonly verifyTokenGrpc: (req: TokenRequest) => Promise<VerifyTokenResponse>;
   private readonly getCustomerGrpc: (req: TokenRequest) => Promise<GetCustomerProfileResponse>;
   private readonly getSellerGrpc: (req: TokenRequest) => Promise<GetSellerProfileResponse>;
-
+  private readonly getCustomerByIdGrpc: (
+    req: AccountIdRequest
+  ) => Promise<GetCustomerProfileResponse>;
+  private readonly getSellerByIdGrpc: (req: AccountIdRequest) => Promise<GetSellerProfileResponse>;
   constructor(tokenGrpc: GrpcTokenServiceClient) {
     this.verifyTokenGrpc = promisify(tokenGrpc.verifyToken.bind(tokenGrpc));
     this.getCustomerGrpc = promisify(tokenGrpc.getCustomerProfile.bind(tokenGrpc));
     this.getSellerGrpc = promisify(tokenGrpc.getSellerProfile.bind(tokenGrpc));
+    this.getCustomerByIdGrpc = promisify(tokenGrpc.getCustomerProfileById.bind(tokenGrpc));
+    this.getSellerByIdGrpc = promisify(tokenGrpc.getSellerProfileById.bind(tokenGrpc));
   }
 
   async verifyToken(token: string, tokenType: JwtTokenType): Promise<UserTokenResponse> {
@@ -89,6 +95,27 @@ export class AuthService {
       throw new Error('Invalid token or user info not returned');
     }
     return this.mapSellerProfileResponse(response.userInfo);
+  }
+
+  async getSellerById(id: string): Promise<SellerProfileResponse> {
+    const response = await this.getSellerByIdGrpc({
+      id,
+    });
+    console.log(response);
+    if (!response.isValid || !response.userInfo) {
+      throw new Error('Invalid seller or user info not returned');
+    }
+    return this.mapSellerProfileResponse(response.userInfo);
+  }
+
+  async getCustomerById(id: string): Promise<CustomerProfileResponse> {
+    const response = await this.getCustomerByIdGrpc({
+      id,
+    });
+    if (!response.isValid || !response.userInfo) {
+      throw new Error('Invalid seller or user info not returned');
+    }
+    return this.mapCustomerProfileResponse(response.userInfo);
   }
 
   private mapUserInfo(userInfo: UserTokenInfo): UserTokenResponse {

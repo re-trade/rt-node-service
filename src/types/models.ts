@@ -1,4 +1,4 @@
-export interface User {
+export interface ModelUser {
   id: string;
   username: string;
   role: string[];
@@ -6,7 +6,7 @@ export interface User {
   avatarUrl: string;
 }
 
-export interface Message {
+export interface ModelMessage {
   id: string;
   content: string;
   roomId: string;
@@ -15,17 +15,17 @@ export interface Message {
   readBy?: string[];
 }
 
-export interface Room {
+export interface ModelRoom {
   id: string;
   isPrivate: boolean;
   createdAt: Date;
   updatedAt: Date;
   sellerId: string;
   customerId: string;
-  messages?: Message[];
+  messages?: ModelMessage[];
 }
 
-export interface VideoSession {
+export interface ModelVideoSession {
   id: string;
   roomId: string;
   startTime: Date;

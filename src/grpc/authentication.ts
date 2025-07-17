@@ -71,6 +71,10 @@ export interface TokenRequest {
   type?: TokenType | undefined;
 }
 
+export interface AccountIdRequest {
+  id?: string | undefined;
+}
+
 export interface UserTokenInfo {
   accountId?: string | undefined;
   roles?: string[] | undefined;
@@ -197,6 +201,64 @@ export const TokenRequest: MessageFns<TokenRequest> = {
     const message = createBaseTokenRequest();
     message.token = object.token ?? '';
     message.type = object.type ?? 0;
+    return message;
+  },
+};
+
+function createBaseAccountIdRequest(): AccountIdRequest {
+  return { id: '' };
+}
+
+export const AccountIdRequest: MessageFns<AccountIdRequest> = {
+  encode(message: AccountIdRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== undefined && message.id !== '') {
+      writer.uint32(10).string(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AccountIdRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAccountIdRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AccountIdRequest {
+    return { id: isSet(object.id) ? globalThis.String(object.id) : '' };
+  },
+
+  toJSON(message: AccountIdRequest): unknown {
+    const obj: any = {};
+    if (message.id !== undefined && message.id !== '') {
+      obj.id = message.id;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AccountIdRequest>, I>>(base?: I): AccountIdRequest {
+    return AccountIdRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AccountIdRequest>, I>>(object: I): AccountIdRequest {
+    const message = createBaseAccountIdRequest();
+    message.id = object.id ?? '';
     return message;
   },
 };
@@ -1168,12 +1230,38 @@ export const GrpcTokenServiceService = {
     responseDeserialize: (value: Buffer): GetSellerProfileResponse =>
       GetSellerProfileResponse.decode(value),
   },
+  getCustomerProfileById: {
+    path: '/authentication.GrpcTokenService/GetCustomerProfileById',
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: AccountIdRequest): Buffer =>
+      Buffer.from(AccountIdRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): AccountIdRequest => AccountIdRequest.decode(value),
+    responseSerialize: (value: GetCustomerProfileResponse): Buffer =>
+      Buffer.from(GetCustomerProfileResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): GetCustomerProfileResponse =>
+      GetCustomerProfileResponse.decode(value),
+  },
+  getSellerProfileById: {
+    path: '/authentication.GrpcTokenService/GetSellerProfileById',
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: AccountIdRequest): Buffer =>
+      Buffer.from(AccountIdRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): AccountIdRequest => AccountIdRequest.decode(value),
+    responseSerialize: (value: GetSellerProfileResponse): Buffer =>
+      Buffer.from(GetSellerProfileResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): GetSellerProfileResponse =>
+      GetSellerProfileResponse.decode(value),
+  },
 } as const;
 
 export interface GrpcTokenServiceServer extends UntypedServiceImplementation {
   verifyToken: handleUnaryCall<TokenRequest, VerifyTokenResponse>;
   getCustomerProfile: handleUnaryCall<TokenRequest, GetCustomerProfileResponse>;
   getSellerProfile: handleUnaryCall<TokenRequest, GetSellerProfileResponse>;
+  getCustomerProfileById: handleUnaryCall<AccountIdRequest, GetCustomerProfileResponse>;
+  getSellerProfileById: handleUnaryCall<AccountIdRequest, GetSellerProfileResponse>;
 }
 
 export interface GrpcTokenServiceClient extends Client {
@@ -1218,6 +1306,36 @@ export interface GrpcTokenServiceClient extends Client {
   ): ClientUnaryCall;
   getSellerProfile(
     request: TokenRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: GetSellerProfileResponse) => void
+  ): ClientUnaryCall;
+  getCustomerProfileById(
+    request: AccountIdRequest,
+    callback: (error: ServiceError | null, response: GetCustomerProfileResponse) => void
+  ): ClientUnaryCall;
+  getCustomerProfileById(
+    request: AccountIdRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: GetCustomerProfileResponse) => void
+  ): ClientUnaryCall;
+  getCustomerProfileById(
+    request: AccountIdRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: GetCustomerProfileResponse) => void
+  ): ClientUnaryCall;
+  getSellerProfileById(
+    request: AccountIdRequest,
+    callback: (error: ServiceError | null, response: GetSellerProfileResponse) => void
+  ): ClientUnaryCall;
+  getSellerProfileById(
+    request: AccountIdRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: GetSellerProfileResponse) => void
+  ): ClientUnaryCall;
+  getSellerProfileById(
+    request: AccountIdRequest,
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: GetSellerProfileResponse) => void
