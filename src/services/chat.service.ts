@@ -287,6 +287,44 @@ class ChatService {
     return users;
   }
 
+  async handleMarkMessageRead(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { messageId: string; receiverId: string }
+  ) {
+    if (!socket.data.user) {
+      socket.emit('error', { message: 'Unauthorized', code: 'AUTH_ERROR' });
+      return;
+    }
+
+    const user = socket.data.user;
+
+    const isSeller = user.senderRole === 'seller';
+    const room = await this.createOrGetRoom({
+      sellerId: isSeller ? user.id : data.receiverId,
+      customerId: isSeller ? data.receiverId : user.id,
+    });
+
+    if (!socket.data.rooms.has(room.id)) {
+      socket.emit('error', { message: 'Not in room', code: 'AUTH_ERROR' });
+      return;
+    }
+
+    try {
+      await redisClient.sAdd(`message:${data.messageId}:read_by`, user.id);
+      const readByUsers = await redisClient.sMembers(`message:${data.messageId}:read_by`);
+
+      this.io.to(room.id).emit('messageRead', {
+        messageId: data.messageId,
+        userId: user.id,
+        readBy: readByUsers,
+        roomId: room.id,
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      socket.emit('error', { message: 'Failed to mark message as read', code: 'DB_ERROR' });
+    }
+  }
+
   private async createOrGetRoom(data: { customerId: string; sellerId: string }): Promise<Room> {
     const key = `room:between:${data.customerId}:${data.sellerId}`;
     const { sellerId, customerId } = data;
