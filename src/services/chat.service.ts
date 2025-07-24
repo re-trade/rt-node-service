@@ -110,6 +110,7 @@ class ChatService {
     const message = await this.createMessage(user.id, {
       content: data.content,
       roomId: room.id,
+      senderType: isSeller ? 'SELLER' : 'CUSTOMER',
     });
     message.sender = user;
     await this.cacheMessage(room.id, message);
@@ -220,18 +221,16 @@ class ChatService {
     }
     const result: Message[] = [];
     for (const msg of messages) {
-      let profile = await this.getOrFetchUser(msg.senderId, 'customer');
-      let chattingUser: ChattingUser | undefined = undefined;
-      if (profile) {
-        chattingUser = this.toChattingUser(profile, 'customer');
-      } else {
-        profile = await this.getOrFetchUser(msg.senderId, 'seller');
-        if (profile) {
-          chattingUser = this.toChattingUser(profile, 'seller');
-        }
-      }
-      result.push({ ...msg, sender: chattingUser });
+      const chattingUser = await this.getOrFetchUser(
+        msg.senderId,
+        this.mapSenderType(msg.senderType)
+      );
+      result.push({
+        ...msg,
+        sender: this.toChattingUser(chattingUser, this.mapSenderType(msg.senderType)),
+      });
     }
+
     return result;
   }
 
@@ -357,6 +356,10 @@ class ChatService {
     return (await this.getRoomById(room.id))!;
   }
 
+  private mapSenderType(type: 'CUSTOMER' | 'SELLER'): 'seller' | 'customer' {
+    return type.toLowerCase() as 'seller' | 'customer';
+  }
+
   private async getOrFetchUser(
     accountId: string,
     type: 'customer' | 'seller'
@@ -385,10 +388,10 @@ class ChatService {
 
   private async createMessage(
     senderId: string,
-    data: { content: string; roomId: string }
+    data: { content: string; roomId: string; senderType: 'CUSTOMER' | 'SELLER' }
   ): Promise<Message> {
     return prisma.message.create({
-      data: { content: data.content, roomId: data.roomId, senderId },
+      data: { content: data.content, roomId: data.roomId, senderId, senderType: data.senderType },
     });
   }
 
