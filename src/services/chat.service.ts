@@ -110,6 +110,7 @@ class ChatService {
     const message = await this.createMessage(user.id, {
       content: data.content,
       roomId: room.id,
+      senderType: isSeller ? 'SELLER' : 'CUSTOMER',
     });
     message.sender = user;
     await this.cacheMessage(room.id, message);
@@ -220,18 +221,16 @@ class ChatService {
     }
     const result: Message[] = [];
     for (const msg of messages) {
-      let profile = await this.getOrFetchUser(msg.senderId, 'customer');
-      let chattingUser: ChattingUser | undefined = undefined;
-      if (profile) {
-        chattingUser = this.toChattingUser(profile, 'customer');
-      } else {
-        profile = await this.getOrFetchUser(msg.senderId, 'seller');
-        if (profile) {
-          chattingUser = this.toChattingUser(profile, 'seller');
-        }
-      }
-      result.push({ ...msg, sender: chattingUser });
+      const chattingUser = await this.getOrFetchUser(
+        msg.senderId,
+        this.mapSenderType(msg.senderType)
+      );
+      result.push({
+        ...msg,
+        sender: this.toChattingUser(chattingUser, this.mapSenderType(msg.senderType)),
+      });
     }
+
     return result;
   }
 
@@ -287,6 +286,44 @@ class ChatService {
     return users;
   }
 
+  async handleMarkMessageRead(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
+    data: { messageId: string; receiverId: string }
+  ) {
+    if (!socket.data.user) {
+      socket.emit('error', { message: 'Unauthorized', code: 'AUTH_ERROR' });
+      return;
+    }
+
+    const user = socket.data.user;
+
+    const isSeller = user.senderRole === 'seller';
+    const room = await this.createOrGetRoom({
+      sellerId: isSeller ? user.id : data.receiverId,
+      customerId: isSeller ? data.receiverId : user.id,
+    });
+
+    if (!socket.data.rooms.has(room.id)) {
+      socket.emit('error', { message: 'Not in room', code: 'AUTH_ERROR' });
+      return;
+    }
+
+    try {
+      await redisClient.sAdd(`message:${data.messageId}:read_by`, user.id);
+      const readByUsers = await redisClient.sMembers(`message:${data.messageId}:read_by`);
+
+      this.io.to(room.id).emit('messageRead', {
+        messageId: data.messageId,
+        userId: user.id,
+        readBy: readByUsers,
+        roomId: room.id,
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      socket.emit('error', { message: 'Failed to mark message as read', code: 'DB_ERROR' });
+    }
+  }
+
   private async createOrGetRoom(data: { customerId: string; sellerId: string }): Promise<Room> {
     const key = `room:between:${data.customerId}:${data.sellerId}`;
     const { sellerId, customerId } = data;
@@ -319,6 +356,10 @@ class ChatService {
     return (await this.getRoomById(room.id))!;
   }
 
+  private mapSenderType(type: 'CUSTOMER' | 'SELLER'): 'seller' | 'customer' {
+    return type.toLowerCase() as 'seller' | 'customer';
+  }
+
   private async getOrFetchUser(
     accountId: string,
     type: 'customer' | 'seller'
@@ -347,10 +388,10 @@ class ChatService {
 
   private async createMessage(
     senderId: string,
-    data: { content: string; roomId: string }
+    data: { content: string; roomId: string; senderType: 'CUSTOMER' | 'SELLER' }
   ): Promise<Message> {
     return prisma.message.create({
-      data: { content: data.content, roomId: data.roomId, senderId },
+      data: { content: data.content, roomId: data.roomId, senderId, senderType: data.senderType },
     });
   }
 

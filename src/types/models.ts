@@ -11,6 +11,7 @@ export interface ModelMessage {
   content: string;
   roomId: string;
   senderId: string;
+  senderType: 'CUSTOMER' | 'SELLER';
   createdAt: Date;
   readBy?: string[];
 }

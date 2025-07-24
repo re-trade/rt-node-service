@@ -43,7 +43,7 @@ export interface ClientToServerEvents {
   createRoom: (data: { name: string }) => void;
 
   typing: (data: { receiverId: string; isTyping: boolean }) => void;
-  markMessageRead: (data: { messageId: string; roomId: string }) => void;
+  markMessageRead: (data: { messageId: string; receiverId: string }) => void;
 
   signal: (data: {
     to: string;
