@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SenderType {
+  SELLER
+  CUSTOMER
+}
+
 model Room {
   id         String    @id @default(uuid())
   privated  Boolean   @default(false)
@@ -23,7 +28,8 @@ model Room {
 model Message {
   id        String   @id @default(uuid())
   content   String
-  roomId    String
+  roomId    String @map("room_id") @default("")
+  senderType SenderType @map("sender_type")
   senderId  String   @map("sender_id")
   createdAt DateTime @default(now()) @map("created_at")
   room      Room     @relation(fields: [roomId], references: [id])
