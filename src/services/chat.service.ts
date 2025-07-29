@@ -405,7 +405,7 @@ class ChatService {
     data: { token?: string }
   ): string {
     if (data.token) return data.token;
-    const cookies = getCookieMap(socket.request);
+    const cookies = getCookieMap(socket.handshake.headers);
     return cookies?.[JwtTokenType.ACCESS_TOKEN] ?? '';
   }
 
