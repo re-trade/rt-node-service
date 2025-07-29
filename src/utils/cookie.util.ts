@@ -1,12 +1,11 @@
-import type { Request } from 'express';
-import type { IncomingMessage } from 'http';
+import type { IncomingHttpHeaders } from 'http';
 import { parse as parseCookie } from 'cookie';
 import { JwtTokenType } from '../types/jwt.types.js';
 
 export type JwtCookieMap = Partial<Record<JwtTokenType, string>>;
 
-function getCookies(req: Request | IncomingMessage): Record<string, string | undefined> {
-  const cookieHeader = req.headers?.cookie;
+function getCookies(req: IncomingHttpHeaders): Record<string, string | undefined> {
+  const cookieHeader = req.cookie;
   return cookieHeader ? parseCookie(cookieHeader) : {};
 }
 
@@ -14,7 +13,7 @@ function isValidTokenCookieName(name: string): name is JwtTokenType {
   return Object.values(JwtTokenType).includes(name as JwtTokenType);
 }
 
-function getCookieMap(req: Request | IncomingMessage): JwtCookieMap {
+function getCookieMap(req: IncomingHttpHeaders): JwtCookieMap {
   const cookies = getCookies(req);
   const result: JwtCookieMap = {};
 
