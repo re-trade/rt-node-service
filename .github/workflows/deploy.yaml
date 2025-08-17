@@ -1,0 +1,73 @@
+name: Build
+on:
+  workflow_call:
+    inputs:
+      actor:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+
+jobs:
+  deploy-dev:
+    runs-on: retrade-dev
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io/${{ inputs.repository }}
+      DOMAIN: ${{ secrets.HOST_DOMAIN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ inputs.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull nightly images
+        run: docker compose -f .docker/compose.yaml -p retrade-service pull
+      - name: Infisical Login
+        run: |
+          echo "INFISICAL_TOKEN=$(infisical login --domain=${{secrets.INFISICAL_URL}} --method=universal-auth --client-id=${{secrets.INFISICAL_CLIENT_ID}} --client-secret=${{secrets.INFISICAL_CLIENT_SECRET}} --silent --plain)" >> $GITHUB_ENV
+      - name: Clean Container, Image And Prepare For Deploy
+        run: infisical run --env=prod --token=${{env.INFISICAL_TOKEN}} --domain=${{secrets.INFISICAL_URL}} --projectId=${{secrets.INFISICAL_PROJECT_ID}} --path=/ --watch -- docker compose -f .docker/compose.yaml -p retrade-service up -d
+        continue-on-error: true
+
+      - name: Clean Old Images
+        run: docker image prune -a -f
+        continue-on-error: true
+
+  deploy-prod:
+    runs-on: retrade-prod
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io/${{ inputs.repository }}
+      DOMAIN: ${{ secrets.HOST_DOMAIN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ inputs.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull nightly images
+        run: docker compose -f .docker/compose.yaml -p retrade-service pull
+      - name: Infisical Login
+        run: |
+          echo "INFISICAL_TOKEN=$(infisical login --domain=${{secrets.INFISICAL_URL}} --method=universal-auth --client-id=${{secrets.INFISICAL_CLIENT_ID}} --client-secret=${{secrets.INFISICAL_CLIENT_SECRET}} --silent --plain)" >> $GITHUB_ENV
+      - name: Clean Container, Image And Prepare For Deploy
+        run: infisical run --env=prod --token=${{env.INFISICAL_TOKEN}} --domain=${{secrets.INFISICAL_URL}} --projectId=${{secrets.INFISICAL_PROJECT_ID}} --path=/ --watch -- docker compose -f .docker/compose.yaml -p retrade-service up -d
+        continue-on-error: true
+
+      - name: Clean Old Images
+        run: docker image prune -a -f
+        continue-on-error: true

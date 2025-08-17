@@ -20,6 +20,7 @@ class VideoService {
       socket.emit('error', { message: 'User not authenticated', code: 'AUTH_ERROR' });
       return;
     }
+    console.log('handleInitiateCall', caller.id, data.recipientId, data.roomId);
 
     const isRecipientOnline = await redisClient.sIsMember('onlineUsers', data.recipientId);
     if (!isRecipientOnline) {
