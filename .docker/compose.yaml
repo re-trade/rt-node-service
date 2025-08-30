@@ -1,5 +1,34 @@
 services:
-  socket-service:
+  socket-service-stag:
+    container_name: socket_service
+    image: ${REGISTRY}/rt-socket-service:latest
+    restart: always
+    networks:
+      - retrade-network
+    environment:
+      REDIS_URL: redis://retrade-redis:6379
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: retrade-database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SCHEMA: chat
+      MAIN_SERVICE_HOST: main-service
+      MAIN_SERVICE_GRPC_PORT: 9080
+      DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@retrade-database:5432/${DB_NAME}?schema=chat
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=retrade-network'
+      - 'traefik.constraint-label=retrade-service'
+      - 'traefik.http.routers.socket-service.rule=Host(`socket-dev.${DOMAIN:-retrade.local}`)'
+      - 'traefik.http.routers.socket-service.entrypoints=web'
+      - 'traefik.http.services.socket-service.loadbalancer.server.port=3000'
+    profiles:
+      - socket
+      - stag
+  socket-service-prod:
     container_name: socket_service
     image: ${REGISTRY}/rt-socket-service:latest
     restart: always
@@ -23,8 +52,11 @@ services:
       - 'traefik.docker.network=retrade-network'
       - 'traefik.constraint-label=retrade-service'
       - 'traefik.http.routers.socket-service.rule=Host(`socket.${DOMAIN:-retrade.local}`)'
-      - 'traefik.http.routers.socket-service.entrypoints=web'
+      - 'traefik.http.routers.socket-service.entrypoints=websecure'
       - 'traefik.http.services.socket-service.loadbalancer.server.port=3000'
+    profiles:
+      - socket
+      - prod
 
 networks:
   retrade-network:
